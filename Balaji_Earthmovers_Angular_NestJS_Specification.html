@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Balaji Earthmovers - Angular + NestJS Architecture & Implementation Specification</title>
+<style>
+    @page {
+        size: A4;
+        margin: 18mm 16mm 18mm 16mm;
+        @bottom-right {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 9pt;
+            color: #64748B;
+        }
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #0F172A;
+        line-height: 1.55;
+        font-size: 10pt;
+        background: #FFFFFF;
+        margin: 0;
+        padding: 0;
+    }
+    h1, h2, h3, h4 {
+        color: #0F172A;
+        margin-top: 1.4em;
+        margin-bottom: 0.5em;
+        font-weight: 700;
+        page-break-after: avoid;
+    }
+    h1 {
+        font-size: 22pt;
+        line-height: 1.2;
+        border-bottom: 3px solid #D97706;
+        padding-bottom: 8px;
+        margin-top: 0;
+    }
+    h2 {
+        font-size: 14pt;
+        border-bottom: 1.5px solid #E2E8F0;
+        padding-bottom: 5px;
+        color: #B45309;
+        margin-top: 1.8em;
+    }
+    h3 {
+        font-size: 11.5pt;
+        color: #1E293B;
+    }
+    h4 {
+        font-size: 10.5pt;
+        color: #334155;
+    }
+    p, ul, ol {
+        margin-top: 0.4em;
+        margin-bottom: 0.6em;
+    }
+    ul, ol {
+        padding-left: 20px;
+    }
+    li {
+        margin-bottom: 4px;
+    }
+    .header-banner {
+        background: linear-gradient(135deg, #0A0F1D 0%, #1E283F 100%);
+        color: #FFFFFF;
+        padding: 24px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        border-left: 6px solid #D97706;
+    }
+    .header-banner h1 {
+        color: #F59E0B;
+        border: none;
+        padding: 0;
+        margin: 0 0 8px 0;
+        font-size: 20pt;
+    }
+    .header-banner .subtitle {
+        font-size: 11pt;
+        color: #E2E8F0;
+        margin: 0 0 6px 0;
+    }
+    .header-banner .meta {
+        font-size: 9pt;
+        color: #94A3B8;
+        display: flex;
+        gap: 20px;
+    }
+    .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 8pt;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .badge-gold { background: #FEF3C7; color: #92400E; }
+    .badge-green { background: #D1FAE5; color: #065F46; }
+    .badge-red { background: #FEE2E2; color: #991B1B; }
+    .badge-blue { background: #E0F2FE; color: #075985; }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+        font-size: 9pt;
+        page-break-inside: avoid;
+    }
+    th, td {
+        border: 1px solid #CBD5E1;
+        padding: 6px 10px;
+        text-align: left;
+        vertical-align: top;
+    }
+    th {
+        background: #F1F5F9;
+        font-weight: 700;
+        color: #0F172A;
+    }
+    tr:nth-child(even) td {
+        background: #F8FAFC;
+    }
+    code {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        font-size: 8.8pt;
+        background: #F1F5F9;
+        color: #B45309;
+        padding: 1px 4px;
+        border-radius: 3px;
+    }
+    pre {
+        background: #0A0F1D;
+        color: #E2E8F0;
+        padding: 12px 14px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        font-size: 8.2pt;
+        line-height: 1.45;
+        margin: 10px 0;
+        border-left: 4px solid #D97706;
+        page-break-inside: avoid;
+    }
+    .callout {
+        background: #FFFBEB;
+        border-left: 4px solid #F59E0B;
+        padding: 10px 14px;
+        margin: 12px 0;
+        border-radius: 0 6px 6px 0;
+        font-size: 9pt;
+    }
+    .callout-title {
+        font-weight: 700;
+        color: #B45309;
+        margin-bottom: 4px;
+    }
+    .callout-danger {
+        background: #FEF2F2;
+        border-left-color: #DC2626;
+    }
+    .callout-danger .callout-title {
+        color: #991B1B;
+    }
+    .callout-info {
+        background: #F0F9FF;
+        border-left-color: #0284C7;
+    }
+    .callout-info .callout-title {
+        color: #0369A1;
+    }
+    .page-break {
+        page-break-before: always;
+    }
+    .color-swatch {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        vertical-align: middle;
+        border-radius: 3px;
+        margin-right: 4px;
+        border: 1px solid #94A3B8;
+    }
+</style>
+</head>
+<body>
+
+<div class="header-banner">
+    <h1>BALAJI EARTHMOVERS KODOLI</h1>
+    <div class="subtitle">Complete Technical & Functional Specification for Angular 18+ and NestJS 10+ Reproduction</div>
+    <div class="meta">
+        <span><strong>Owner:</strong> Ajaysinh Jaysing Patil</span>
+        <span><strong>Domain:</strong> Construction Fleet & Accounts Management ERP</span>
+        <span><strong>Target Stack:</strong> Angular + NestJS + PostgreSQL</span>
+        <span><strong>Version:</strong> 2.4.0 Production Spec</span>
+    </div>
+</div>
+
+<div class="callout callout-info">
+    <div class="callout-title">PURPOSE OF THIS SPECIFICATION</div>
+    This document serves as an exhaustive, step-by-step blueprint for an AI agent or software engineering team to recreate the entire <strong>Balaji Earthmovers</strong> native application into a modern, enterprise-grade <strong>Angular 18+ (Frontend) and NestJS 10+ (Backend)</strong> web and progressive web application (PWA). Every mathematical invariant, database schema, API endpoint, UI component, and UX interaction is specified with exact parameters.
+</div>
+
+<h2>1. Executive Summary & Core Requirements</h2>
+<p>
+Balaji Earthmovers Kodoli is a specialized ERP system designed for earthmoving machinery contracting (JCBs, Poclain excavators, Tractors, Tippers, Rollers). It manages the complete lifecycle of heavy machinery deployment: hourly & fixed-amount billing, fuel tracking, 250-hour routine maintenance triggers, driver salaries with advances, customer receivables with passbook history, income/expense ledgers, multi-language localization, and dual PIN security.
+</p>
+
+<h3>Core Invariants That Must Be Preserved:</h3>
+<ul>
+    <li><strong>Dual Pricing Model:</strong> Work orders support both <code>Hourly Work</code> (hours × rate) and <code>Fixed Amount</code> (lump sum contract).</li>
+    <li><strong>Atomic Income Linkage:</strong> When creating a work order, any initial payment received must automatically be recorded as an <code>Income</code> record and credited toward customer billings.</li>
+    <li><strong>Atomic Rollback on Deletion:</strong> Deleting a work order must reversibly deduct from customer total billed, customer total paid, vehicle worked hours, and soft-delete the linked initial payment.</li>
+    <li><strong>Exact Net Earnings Formula:</strong> <code>Net Earnings = Total Collected Income - Total Expenses</code>. Total Work Billed is gross invoiced volume, not actual cash-in-hand.</li>
+    <li><strong>250-Hour Maintenance Engine:</strong> Machines flag a <code>250h SERVICE DUE!</code> alert when <code>(workedHours - lastServiceHours) &ge; 250.0</code>. The Reset button must be positioned below the machine details.</li>
+    <li><strong>Dual PIN Security:</strong> 4-digit App Unlock PIN (default <code>1234</code>) with an animated green open-lock unlock transition, plus a 4-digit Admin PIN (default <code>2476</code>) required for sensitive edits, deletions, and data wipes. PINs must never be revealed in UI hints.</li>
+    <li><strong>WhatsApp-Style Compact Interface:</strong> Compact lists featuring left avatar/machine badges, bold titles with dates, subtle subtitle details, status pills on right, and tight padding with zero top dead space.</li>
+    <li><strong>Passbook Ledgers:</strong> Both Drivers and Customers must have a dedicated timeline Passbook (debits vs credits, running balance, call button, and payment drawer).</li>
+</ul>
+
+<h2>2. Complete Design System & Branding</h2>
+
+<h3>2.1 Color Palette</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Token Name</th>
+            <th>Hex Code</th>
+            <th>Preview</th>
+            <th>Application & Role</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>BrandGoldPrimary</code></td>
+            <td><code>#D97706</code></td>
+            <td><span class="color-swatch" style="background:#D97706;"></span> Amber 600</td>
+            <td>Primary brand actions, active navigation icons, work cards, key accents</td>
+        </tr>
+        <tr>
+            <td><code>BrandGoldSecondary</code></td>
+            <td><code>#F59E0B</code></td>
+            <td><span class="color-swatch" style="background:#F59E0B;"></span> Amber 500</td>
+            <td>Ambient splash halo, star ratings, advance payout indicators</td>
+        </tr>
+        <tr>
+            <td><code>BrandGoldDark</code></td>
+            <td><code>#B45309</code></td>
+            <td><span class="color-swatch" style="background:#B45309;"></span> Bronze Amber 700</td>
+            <td>Dark borders, active hover states, section headers</td>
+        </tr>
+        <tr>
+            <td><code>SlateCanvasLight</code></td>
+            <td><code>#F8FAFC</code></td>
+            <td><span class="color-swatch" style="background:#F8FAFC;"></span> Slate 50</td>
+            <td>Default application background in Light Mode</td>
+        </tr>
+        <tr>
+            <td><code>SlateSurfaceLight</code></td>
+            <td><code>#FFFFFF</code></td>
+            <td><span class="color-swatch" style="background:#FFFFFF;"></span> White</td>
+            <td>Card surfaces, dialog backgrounds, bottom navigation bar</td>
+        </tr>
+        <tr>
+            <td><code>SlateLightBorder</code></td>
+            <td><code>#94A3B8</code></td>
+            <td><span class="color-swatch" style="background:#94A3B8;"></span> Slate 400</td>
+            <td>Visible, crisp borders for input fields (<code>10px</code> radius) and cards</td>
+        </tr>
+        <tr>
+            <td><code>SlateNavyDark</code></td>
+            <td><code>#0A0F1D</code></td>
+            <td><span class="color-swatch" style="background:#0A0F1D;"></span> Custom Navy</td>
+            <td>Default application canvas in Dark Mode</td>
+        </tr>
+        <tr>
+            <td><code>SlateNavySurface</code></td>
+            <td><code>#131B2E</code></td>
+            <td><span class="color-swatch" style="background:#131B2E;"></span> Deep Navy</td>
+            <td>Dark mode card background and dialog container</td>
+        </tr>
+        <tr>
+            <td><code>SlateNavyBorder</code></td>
+            <td><code>#475569</code></td>
+            <td><span class="color-swatch" style="background:#475569;"></span> Slate 600</td>
+            <td>Dark mode input field and surface borders</td>
+        </tr>
+        <tr>
+            <td><code>ProfitGreen</code></td>
+            <td><code>#059669</code></td>
+            <td><span class="color-swatch" style="background:#059669;"></span> Emerald 600</td>
+            <td>Income payments received, paid status, zero-balance pills</td>
+        </tr>
+        <tr>
+            <td><code>ExpenseRed</code></td>
+            <td><code>#DC2626</code></td>
+            <td><span class="color-swatch" style="background:#DC2626;"></span> Red 600</td>
+            <td>Expenses, service overdue alerts, pending balances &gt; 0, deletions</td>
+        </tr>
+        <tr>
+            <td><code>InfoBlue</code></td>
+            <td><code>#0284C7</code></td>
+            <td><span class="color-swatch" style="background:#0284C7;"></span> Sky 600</td>
+            <td>Vehicle worked hours metrics, secondary indicators</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>2.2 Global Top Bar (<code>BalajiTopBar</code>)</h3>
+<p>
+The top bar must be fixed to the very top across all primary modules (Dashboard, Vehicle, Work, Customer, Driver, Report):
+</p>
+<ul>
+    <li><strong>Left:</strong> Official Balaji Earthmovers Logo (<code>38px &times; 38px</code>, <code>6px</code> rounded corners).</li>
+    <li><strong>Center-Left:</strong>
+        <div style="font-weight: bold; font-size: 11pt;">Balaji Earthmovers Kodoli</div>
+        <div style="font-size: 8.5pt; color: #D97706; font-weight: 600;">Owner: Ajaysinh Jaysing Patil</div>
+    </li>
+    <li><strong>Right:</strong> Settings gear icon button (opens Settings directory).</li>
+    <li><strong>Height & Spacing:</strong> Compact (<code>48px</code> to <code>52px</code> total height), <code>0px</code> shadow elevation, <code>1px</code> subtle bottom divider. Zero dead margin above.</li>
+</ul>
+
+<h3>2.3 Bottom Navigation Bar (No White Gaps)</h3>
+<ul>
+    <li><strong>Items:</strong> <code>Dashboard</code>, <code>Vehicle</code>, <code>Work</code>, <code>Customer</code>, <code>Driver</code>, <code>Report</code>.</li>
+    <li><strong>Styling:</strong> <code>tonalElevation = 0</code>, container matching surface, subtle <code>0.5px</code> top border (<code>rgba(148, 163, 184, 0.25)</code>). Must not display any white gap between viewport bottom and navbar.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>3. Database Schema & Entity Relational Architecture</h2>
+<p>
+The PostgreSQL database (managed via TypeORM or Prisma in NestJS) implements 7 normalized tables with cascading constraints and soft-delete capabilities.
+</p>
+
+<h3>3.1 Entity Relationship Diagram</h3>
+<pre>
+   +--------------------+               +--------------------+
+   |      VEHICLES      |               |      DRIVERS       |
+   +--------------------+               +--------------------+
+   | id (PK, UUID)      |               | id (PK, UUID)      |
+   | vehicleName        |               | driverName         |
+   | vehicleNumber      |               | mobileNumber       |
+   | model              |               | adharNumber (Enc)  |
+   | workedHours        |               | monthlySalary      |
+   | fuelExpenseTotal   |               | givenSalary        |
+   | lastServiceHours   |               | totalEarnedToDate  |
+   | currentDriverId(FK)|---+       +---| assignedVehicle(FK)|
+   +--------------------+   |       |   +--------------------+
+             |              |       |             |
+             |              +---+---+             |
+             |                  |                 | 1:N
+             | 1:N              | 1:N             v
+             |                  |       +--------------------+
+             |                  |       | DRIVER_TRANSACTIONS|
+             |                  |       +--------------------+
+             v                  v       | id (PK, UUID)      |
+   +--------------------------------+   | driverId (FK)      |
+   |             WORKS              |   | amount             |
+   +--------------------------------+   | transactionType    |
+   | id (PK, UUID)                  |   | date               |
+   | workName                       |   | notes              |
+   | vehicleId (FK)                 |   +--------------------+
+   | driverId (FK)                  |
+   | customerId (FK)                |
+   | date                           |
+   | startTime / endTime            |
+   | totalTimeHours                 |
+   | hourlyRate                     |
+   | totalWorkAmount                |
+   | location                       |
+   | isFixedAmount (Boolean)        |
+   +--------------------------------+
+        |                    ^
+    1:N |                1:N |
+        v                    |
+   +--------------------+    |          +--------------------+
+   |      INCOMES       |    |          |     CUSTOMERS      |
+   +--------------------+    |          +--------------------+
+   | id (PK, UUID)      |    |          | id (PK, UUID)      |
+   | workId (FK, Null)  |----+          | name               |
+   | customerId (FK)    |---------------+ mobileNumber       |
+   | date               |               | gstin              |
+   | totalWorkAmount    |               | totalBilled        |
+   | paidAmount         |               | totalPaid          |
+   | pendingAmount      |               | pendingBalance     |
+   | paymentMode        |               +--------------------+
+   | transactionRefId   |                         
+   +--------------------+                         
+</pre>
+
+<h3>3.2 Complete PostgreSQL / TypeORM Entity Definitions</h3>
+
+<h4>1. Vehicle Entity (<code>vehicles</code>)</h4>
+<pre><code>@Entity('vehicles')
+export class Vehicle {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ length: 100 })
+  vehicleName: string; // e.g. "JCB 3DX", "Dumper", "Other"
+
+  @Column({ length: 50, unique: true })
+  vehicleNumber: string; // e.g. "MH-09-AB-1234"
+
+  @Column({ length: 100, default: '' })
+  model: string;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0.0 })
+  workedHours: number;
+
+  @Column('decimal', { precision: 12, scale: 2, default: 0.0 })
+  fuelExpenseTotal: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0.0 })
+  lastServiceHours: number; // Checked against 250hr interval
+
+  @Column({ nullable: true })
+  currentDriverId: string;
+
+  @ManyToOne(() => Driver, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'currentDriverId' })
+  currentDriver: Driver;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date;
+}</code></pre>
+
+<h4>2. Driver Entity (<code>drivers</code>)</h4>
+<pre><code>@Entity('drivers')
+export class Driver {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ length: 120 })
+  driverName: string;
+
+  @Column({ length: 20 })
+  mobileNumber: string;
+
+  @Column({ length: 255 })
+  adharNumber: string; // AES-256 encrypted in DB, masked in UI as "XXXXXXXX1234"
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0.0 })
+  monthlySalary: number;
+
+  @Column('decimal', { precision: 12, scale: 2, default: 0.0 })
+  givenSalary: number;
+
+  @Column('decimal', { precision: 12, scale: 2, default: 0.0 })
+  totalEarnedToDate: number;
+
+  @Column({ nullable: true })
+  assignedVehicleId: string;
+
+  @OneToMany(() => DriverTransaction, tx => tx.driver)
+  transactions: DriverTransaction[];
+
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date;
+}</code></pre>
+
+<h4>3. Customer Entity (<code>customers</code>)</h4>
+<pre><code>@Entity('customers')
+export class Customer {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ length: 150 })
+  name: string;
+
+  @Column({ length: 20 })
+  mobileNumber: string;
+
+  @Column({ length: 50, default: '' })
+  gstin: string;
+
+  @Column('decimal', { precision: 14, scale: 2, default: 0.0 })
+  totalBilled: number;
+
+  @Column('decimal', { precision: 14, scale: 2, default: 0.0 })
+  totalPaid: number;
+
+  @Column('decimal', { precision: 14, scale: 2, default: 0.0 })
+  pendingBalance: number; // totalBilled - totalPaid
+
+  @OneToMany(() => Work, work => work.customer)
+  works: Work[];
+
+  @OneToMany(() => Income, income => income.customer)
+  incomes: Income[];
+
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date;
+}</code></pre>
+
+<div class="page-break"></div>
+
+<h4>4. Work Entity (<code>works</code>)</h4>
+<pre><code>@Entity('works')
+export class Work {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ length: 150 })
+  workName: string;
+
+  @Column()
+  vehicleId: string;
+
+  @ManyToOne(() => Vehicle, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'vehicleId' })
+  vehicle: Vehicle;
+
+  @Column()
+  driverId: string;
+
+  @ManyToOne(() => Driver, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'driverId' })
+  driver: Driver;
+
+  @Column()
+  customerId: string;
+
+  @ManyToOne(() => Customer, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'customerId' })
+  customer: Customer;
+
+  @Column('bigint')
+  date: number; // Unix Epoch ms
+
+  @Column('bigint')
+  startTime: number;
+
+  @Column('bigint')
+  endTime: number;
+
+  @Column('decimal', { precision: 8, scale: 2 })
+  totalTimeHours: number;
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  hourlyRate: number;
+
+  @Column('decimal', { precision: 12, scale: 2 })
+  totalWorkAmount: number;
+
+  @Column({ length: 200, default: '' })
+  location: string;
+
+  @Column({ default: false })
+  isFixedAmount: boolean;
+
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date;
+}</code></pre>
+
+<h4>5. Income Entity (<code>incomes</code>)</h4>
+<pre><code>export enum PaymentMode {
+  CASH = 'CASH',
+  UPI = 'UPI',
+  NEFT = 'NEFT',
+  CHEQUE = 'CHEQUE'
+}
+
+@Entity('incomes')
+export class Income {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ nullable: true })
+  workId: string;
+
+  @Column()
+  customerId: string;
+
+  @ManyToOne(() => Customer, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'customerId' })
+  customer: Customer;
+
+  @Column('bigint')
+  date: number;
+
+  @Column('decimal', { precision: 12, scale: 2, default: 0.0 })
+  totalWorkAmount: number;
+
+  @Column('decimal', { precision: 12, scale: 2 })
+  paidAmount: number;
+
+  @Column('decimal', { precision: 12, scale: 2, default: 0.0 })
+  pendingAmount: number;
+
+  @Column({ type: 'enum', enum: PaymentMode, default: PaymentMode.CASH })
+  paymentMode: PaymentMode;
+
+  @Column({ length: 100, default: '' })
+  transactionReferenceId: string; // UTR / Cheque / Ref number
+
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date;
+}</code></pre>
+
+<h4>6. Expense Entity (<code>expenses</code>)</h4>
+<pre><code>export enum ExpenseType {
+  FUEL = 'FUEL',
+  SALARY = 'SALARY',
+  MAINTENANCE = 'MAINTENANCE',
+  OTHER = 'OTHER'
+}
+
+@Entity('expenses')
+export class Expense {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ length: 150 })
+  expenseName: string;
+
+  @Column({ type: 'enum', enum: ExpenseType })
+  expenseType: ExpenseType;
+
+  @Column('decimal', { precision: 12, scale: 2 })
+  amount: number;
+
+  @Column('bigint')
+  date: number;
+
+  @Column({ type: 'text', default: '' })
+  description: string;
+
+  @Column({ nullable: true })
+  linkedVehicleId: string;
+
+  @Column({ nullable: true })
+  linkedDriverId: string;
+
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date;
+}</code></pre>
+
+<h4>7. Driver Transaction Entity (<code>driver_transactions</code>)</h4>
+<pre><code>export enum DriverTransactionType {
+  SALARY = 'SALARY',
+  ADVANCE = 'ADVANCE',
+  BONUS = 'BONUS'
+}
+
+@Entity('driver_transactions')
+export class DriverTransaction {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  driverId: string;
+
+  @ManyToOne(() => Driver, driver => driver.transactions, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'driverId' })
+  driver: Driver;
+
+  @Column('decimal', { precision: 12, scale: 2 })
+  amount: number;
+
+  @Column({ type: 'enum', enum: DriverTransactionType })
+  transactionType: DriverTransactionType;
+
+  @Column('bigint')
+  date: number;
+
+  @Column({ length: 255, default: '' })
+  notes: string;
+}</code></pre>
+
+<div class="page-break"></div>
+
+<h2>4. Mathematical Models & Business Logic Invariants</h2>
+
+<div class="callout callout-danger">
+    <div class="callout-title">CRITICAL MATHEMATICAL INTEGRITY RULES</div>
+    Failure to adhere to these transactional equations will result in ledger drift. All database state transitions must execute inside PostgreSQL transactions (<code>queryRunner.startTransaction()</code>).
+</div>
+
+<h3>4.1 Work Creation & Automatic Driver Assignment</h3>
+<ol>
+    <li><strong>Vehicle & Driver Linkage:</strong> When a user selects a vehicle in the Work Entry Dialog, the frontend automatically looks up <code>vehicle.currentDriverId</code> and pre-selects that driver. The user can manually override the driver if desired.</li>
+    <li><strong>Pricing Option:</strong>
+        <ul>
+            <li>If <code>isFixedAmount == false</code>: <code>totalWorkAmount = totalTimeHours * hourlyRate</code>.</li>
+            <li>If <code>isFixedAmount == true</code>: <code>totalWorkAmount = fixedAmount</code>. The <code>hourlyRate</code> is set to <code>fixedAmount / totalTimeHours</code> (or 0.0 if hours is 0).</li>
+        </ul>
+    </li>
+    <li><strong>Initial Payment Booking (Atomicity):</strong>
+        <p>If <code>initialPaidAmount &gt; 0</code> during Work creation:</p>
+        <pre><code>await queryRunner.manager.insert(Work, workEntity);
+
+if (initialPaidAmount > 0) {
+  const incomeEntity = new Income({
+    workId: workEntity.id,
+    customerId: workEntity.customerId,
+    date: workEntity.date,
+    totalWorkAmount: workEntity.totalWorkAmount,
+    paidAmount: initialPaidAmount,
+    pendingAmount: workEntity.totalWorkAmount - initialPaidAmount,
+    paymentMode: dto.paymentMode,
+    transactionReferenceId: dto.transactionRef || ''
+  });
+  await queryRunner.manager.insert(Income, incomeEntity);
+}
+
+// Update Customer aggregate balances
+await queryRunner.manager.increment(Customer, { id: workEntity.customerId }, 'totalBilled', workEntity.totalWorkAmount);
+await queryRunner.manager.increment(Customer, { id: workEntity.customerId }, 'totalPaid', initialPaidAmount);
+await queryRunner.manager.update(Customer, { id: workEntity.customerId }, {
+  pendingBalance: () => 'totalBilled - totalPaid'
+});
+
+// Update Vehicle hours
+await queryRunner.manager.increment(Vehicle, { id: workEntity.vehicleId }, 'workedHours', workEntity.totalTimeHours);</code></pre>
+    </li>
+</ol>
+
+<h3>4.2 Atomic Work Deletion & Reversion</h3>
+<p>
+When an administrator deletes a Work order (verified by 4-digit Admin PIN <code>2476</code>):
+</p>
+<pre><code>// 1. Fetch Work and any linked incomes
+const work = await queryRunner.manager.findOne(Work, { where: { id: workId } });
+const incomes = await queryRunner.manager.find(Income, { where: { workId, deletedAt: IsNull() } });
+const totalIncomeForWork = incomes.reduce((sum, inc) => sum + Number(inc.paidAmount), 0);
+
+// 2. Soft-delete Work and Incomes
+await queryRunner.manager.softDelete(Work, workId);
+if (incomes.length > 0) {
+  await queryRunner.manager.softDelete(Income, { workId });
+}
+
+// 3. Roll back customer balances
+await queryRunner.manager.decrement(Customer, { id: work.customerId }, 'totalBilled', work.totalWorkAmount);
+await queryRunner.manager.decrement(Customer, { id: work.customerId }, 'totalPaid', totalIncomeForWork);
+await queryRunner.manager.update(Customer, { id: work.customerId }, {
+  pendingBalance: () => 'GREATEST(0, totalBilled - totalPaid)'
+});
+
+// 4. Roll back vehicle hours
+await queryRunner.manager.decrement(Vehicle, { id: work.vehicleId }, 'workedHours', work.totalTimeHours);</code></pre>
+
+<h3>4.3 Dashboard Financial Pillar Formulas</h3>
+<table>
+    <thead>
+        <tr>
+            <th>KPI Metric</th>
+            <th>Calculation Formula</th>
+            <th>Color & UI Placement</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Net Earnings (Hero)</strong></td>
+            <td><code>Total Incomes Collected - Total Expenses</code></td>
+            <td>Emerald <code>#059669</code> if &ge; 0, Crimson <code>#DC2626</code> if &lt; 0. Top Hero Card.</td>
+        </tr>
+        <tr>
+            <td><strong>Gross Billed</strong></td>
+            <td><code>&sum; works.totalWorkAmount</code> (all active works)</td>
+            <td>Amber <code>#D97706</code>. Top metric card.</td>
+        </tr>
+        <tr>
+            <td><strong>Total Received</strong></td>
+            <td><code>&sum; incomes.paidAmount</code></td>
+            <td>Emerald <code>#059669</code>. Financial Pillar 1.</td>
+        </tr>
+        <tr>
+            <td><strong>Total Spend</strong></td>
+            <td><code>&sum; expenses.amount</code> (Fuel + Salary + Maintenance + Other)</td>
+            <td>Crimson <code>#DC2626</code>. Financial Pillar 2.</td>
+        </tr>
+        <tr>
+            <td><strong>Pending from Clients</strong></td>
+            <td><code>&sum; customers.pendingBalance</code></td>
+            <td>Warning Amber <code>#F59E0B</code>. Financial Pillar 3.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>4.4 250-Hour Routine Maintenance Trigger</h3>
+<ul>
+    <li>Calculation: <code>hoursSinceService = vehicle.workedHours - vehicle.lastServiceHours</code>.</li>
+    <li>Threshold: If <code>hoursSinceService &ge; 250.0</code>, vehicle triggers <code>isServiceDue = true</code>.</li>
+    <li>UI Representation: Displays a red warning banner with machine name, current hours, and overdue hours.</li>
+    <li><strong>Reset Button Rule:</strong> The <strong>"Reset 250h Service"</strong> button must be placed <em>below</em> the machine details. Resetting updates <code>lastServiceHours = vehicle.workedHours</code>.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>5. NestJS Backend Architecture & REST API Specification</h2>
+
+<h3>5.1 Folder Structure</h3>
+<pre>
+backend/
+├── src/
+│   ├── app.module.ts
+│   ├── main.ts
+│   ├── common/
+│   │   ├── filters/http-exception.filter.ts
+│   │   ├── guards/admin-pin.guard.ts
+│   │   ├── interceptors/transform.interceptor.ts
+│   │   └── services/crypto.service.ts
+│   ├── modules/
+│   │   ├── auth/              # App unlock PIN & Admin PIN verification
+│   │   ├── vehicles/          # Vehicle CRUD, 250h maintenance reset, "Other" presets
+│   │   ├── works/             # Work order CRUD, atomic billing & income rollback
+│   │   ├── customers/         # Customer directory, passbook ledger, payment collection
+│   │   ├── drivers/           # Driver directory, salary payouts, passbook timeline
+│   │   ├── expenses/          # Fuel, Maintenance, Salary, Other expense ledger
+│   │   ├── incomes/           # Income receipts & customer credit transactions
+│   │   ├── reports/           # PDF & CSV generation engine
+│   │   └── backup/            # JSON export & restore engine
+</pre>
+
+<h3>5.2 REST Endpoints Specification</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Auth / Guard</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>POST</code></td>
+            <td><code>/api/auth/verify-app-pin</code></td>
+            <td>Verifies 4-digit App Unlock PIN (body: <code>{ pin: string }</code>)</td>
+            <td>Public</td>
+        </tr>
+        <tr>
+            <td><code>POST</code></td>
+            <td><code>/api/auth/verify-admin-pin</code></td>
+            <td>Verifies 4-digit Admin PIN for edits/deletes</td>
+            <td>Public</td>
+        </tr>
+        <tr>
+            <td><code>PUT</code></td>
+            <td><code>/api/auth/update-app-pin</code></td>
+            <td>Updates App PIN (requires current PIN)</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>PUT</code></td>
+            <td><code>/api/auth/update-admin-pin</code></td>
+            <td>Updates Admin PIN (requires current Admin PIN)</td>
+            <td>Admin PIN</td>
+        </tr>
+        <tr>
+            <td><code>GET</code></td>
+            <td><code>/api/dashboard/stats</code></td>
+            <td>Returns Net Profit, Total Received, Total Expenses, Pending Receivables, Service Due machines</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>GET / POST</code></td>
+            <td><code>/api/vehicles</code></td>
+            <td>List vehicles (with assigned driver) / Create new vehicle (supports "Other" custom name)</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>POST</code></td>
+            <td><code>/api/vehicles/:id/reset-service</code></td>
+            <td>Resets 250h routine service hours to current <code>workedHours</code></td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>DELETE</code></td>
+            <td><code>/api/vehicles/:id</code></td>
+            <td>Soft-delete vehicle</td>
+            <td><code>AdminPinGuard</code></td>
+        </tr>
+        <tr>
+            <td><code>GET / POST</code></td>
+            <td><code>/api/works</code></td>
+            <td>List works with details / Create work (atomic customer & income sync)</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>DELETE</code></td>
+            <td><code>/api/works/:id</code></td>
+            <td>Soft-delete work (atomic rollback of customer, vehicle, and income)</td>
+            <td><code>AdminPinGuard</code></td>
+        </tr>
+        <tr>
+            <td><code>GET / POST</code></td>
+            <td><code>/api/customers</code></td>
+            <td>List customers / Create new customer</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>GET</code></td>
+            <td><code>/api/customers/:id/passbook</code></td>
+            <td>Chronological unified passbook (works debited + payments credited)</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>POST</code></td>
+            <td><code>/api/customers/:id/receive-payment</code></td>
+            <td>Receive payment (amount, mode, refId). Updates <code>totalPaid</code> and <code>pendingBalance</code></td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>GET / POST</code></td>
+            <td><code>/api/drivers</code></td>
+            <td>List drivers / Create driver (Aadhaar encrypted)</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>GET</code></td>
+            <td><code>/api/drivers/:id/passbook</code></td>
+            <td>Chronological driver timeline (salary, advance, bonus transactions)</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>POST</code></td>
+            <td><code>/api/drivers/:id/payout</code></td>
+            <td>Record salary payout/advance. Automatically creates <code>Expense</code> of type SALARY</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>GET</code></td>
+            <td><code>/api/reports/export-pdf</code></td>
+            <td>Downloads formatted operational PDF report with KPI header and table</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>GET</code></td>
+            <td><code>/api/reports/export-csv</code></td>
+            <td>Downloads operational CSV spreadsheet</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>GET</code></td>
+            <td><code>/api/backup/export</code></td>
+            <td>Full JSON export of all database tables</td>
+            <td>App PIN</td>
+        </tr>
+        <tr>
+            <td><code>POST</code></td>
+            <td><code>/api/backup/restore</code></td>
+            <td>Restores database from uploaded JSON backup</td>
+            <td><code>AdminPinGuard</code></td>
+        </tr>
+        <tr>
+            <td><code>POST</code></td>
+            <td><code>/api/backup/clear-all</code></td>
+            <td>Wipes all database records (Factory Reset)</td>
+            <td><code>AdminPinGuard</code></td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<h2>6. Angular 18+ Frontend Architecture & UI Specification</h2>
+
+<h3>6.1 Component Hierarchy & Tree</h3>
+<pre>
+src/app/
+├── app.component.ts               # Root routing, Theme state, Language state
+├── app.config.ts                  # Providers: provideHttpClient, provideRouter, provideAnimations
+├── core/
+│   ├── guards/auth.guard.ts       # Route guard checking PIN unlock
+│   ├── interceptors/auth.interceptor.ts
+│   ├── services/
+│   │   ├── api.service.ts         # Generic HTTP methods
+│   │   ├── erp-state.service.ts   # Signals store for dashboard, fleet, works, customers, drivers
+│   │   ├── i18n.service.ts        # Dynamic English, Marathi, Hindi dictionary store
+│   │   └── theme.service.ts       # System / Light / Dark mode switcher
+├── shared/
+│   ├── components/
+│   │   ├── top-bar/               # BalajiTopBar: logo, business name, owner pill, settings gear
+│   │   ├── bottom-nav/            # Pinned bottom navigation (6 tabs)
+│   │   ├── number-keypad/         # 0-9 numeric pad with backspace for PIN dialogs
+│   │   ├── admin-pin-modal/       # Modal requesting Admin PIN before edit/delete
+│   │   └── whatsapp-card/         # Base reusable card with left avatar, title, subtitle, right badge
+├── features/
+│   ├── splash/splash.component.ts # 3.8s Microsoft 365 style logo animation
+│   ├── lock/lock.component.ts     # PIN lock screen with green open-lock transition
+│   ├── dashboard/                 # Net balance hero, 4 metric cards, service alert banner
+│   ├── fleet-work/                # Tab 0 = Vehicles (with "Other" input), Tab 1 = Work Orders
+│   ├── directory/                 # Tab 0 = Drivers (Passbook), Tab 1 = Customers (Passbook)
+│   ├── driver-passbook/           # Timeline ledger, salary vs advance cards, Record Payout modal
+│   ├── customer-passbook/         # Chronological work vs payment ledger, Receive Payment modal
+│   ├── reports/                   # Filter chips (All/Month/Week/Today), KPI cards, PDF/CSV export
+│   └── settings/                  # 3 directory folders: Themes & Languages, Data & Storage, Security
+</pre>
+
+<h3>6.2 Key Component Specifications</h3>
+
+<h4>1. Animated Splash Screen (<code>splash.component.ts</code>)</h4>
+<ul>
+    <li><strong>Duration:</strong> Total duration ~<code>3.8 seconds</code>.</li>
+    <li><strong>Phase 1 (0ms - 850ms):</strong> Tilak emblem icon enters with a gentle scale (<code>0.62</code> &rarr; <code>1.04</code>), subtle rotation (<code>-5&deg;</code> &rarr; <code>0&deg;</code>), and an ambient golden radial glow halo (<code>#F59E0B</code>, <code>35%</code> opacity).</li>
+    <li><strong>Phase 2 (850ms - 1700ms):</strong> Smooth cross-fade and morph into the full official Balaji Earthmovers branding image.</li>
+    <li><strong>Phase 3 (1700ms - 2400ms):</strong> Brand title <em>"Balaji Earthmovers Kodoli"</em> and executive pill <em>"Owner: Ajaysinh Jaysing Patil"</em> slide up smoothly.</li>
+    <li><strong>Hold (2400ms - 3800ms):</strong> Executive appreciation hold, followed by automatic navigation to Lock Screen or Dashboard.</li>
+</ul>
+
+<h4>2. Enhanced PIN Lock Screen (<code>lock.component.ts</code>)</h4>
+<ul>
+    <li>Centered official logo, business title, and text <em>"Enter 4 digit code to open"</em> (no PIN hints).</li>
+    <li>4 circular PIN indicator dots. Numeric keypad (1–9, 0, Backspace).</li>
+    <li><strong>Unlock Animation:</strong> Upon verifying <code>1234</code>:
+        <ol>
+            <li>Lock icon transforms into an open lock (<code>Icons.Default.LockOpen</code>) with Emerald Green (<code>#059669</code>).</li>
+            <li>All 4 dots illuminate in Emerald Green with a subtle scale pulse.</li>
+            <li>Screen displays <em>"Access Granted"</em> in bold green.</li>
+            <li>Smooth scale-out (<code>1.06</code> &rarr; <code>0.96</code>) and fade-out over <code>450ms</code> before entering the app.</li>
+        </ol>
+    </li>
+</ul>
+
+<h4>3. Vehicle Form Dialog with "Other" Option</h4>
+<ul>
+    <li><strong>Vehicle Presets:</strong> <code>JCB 3DX</code>, <code>Tractor</code>, <code>Tractor with Trolley</code>, <code>Dumper / Tipper</code>, <code>Excavator (Poclain)</code>, <code>Mini Excavator</code>, <code>Compactor / Roller</code>, <code>Hydra / Crane</code>, <code>Water Tanker</code>, <code>Other</code>.</li>
+    <li><strong>Custom Input:</strong> When <code>Other</code> is selected, an <code>OutlinedTextField</code> appears: <em>"Custom Vehicle Name *"</em> (e.g. Grader, Bulldozer, Bobcat).</li>
+    <li><strong>Registration Dropdown:</strong> RTO district codes (MH-09 Kolhapur, MH-12 Pune, MH-14 Pimpri, MH-10 Sangli, MH-11 Satara, etc.).</li>
+</ul>
+
+<h4>4. Customer Passbook Screen (<code>customer-passbook.component.ts</code>)</h4>
+<ul>
+    <li><strong>Top Bar:</strong> Customer Name, <em>"Customer Passbook & Ledger"</em> subtitle, back button, and direct dial phone button (<code>tel:</code> link).</li>
+    <li><strong>Summary Card:</strong> Remaining Balance (large bold text, Green if 0, Red if &gt; 0), Total Billed, Total Received.</li>
+    <li><strong>Chronological Ledger:</strong>
+        <ul>
+            <li><strong>Work Order Item:</strong> Icon badge, <em>"Work Order / Billed"</em> title, <code>+ ₹amount</code> (Gold), work description (Hours @ Rate or Fixed Price), date & time.</li>
+            <li><strong>Payment Item:</strong> Green checkmark badge, <em>"Payment Received"</em> title, <code>- ₹amount</code> (Green), mode (Cash/UPI/NEFT/Cheque), reference number, date & time.</li>
+        </ul>
+    </li>
+    <li><strong>Receive Payment Button:</strong> Opens modal where <code>amount</code> starts completely <strong>blank</strong> (empty string) so the user must type the received sum.</li>
+</ul>
+
+<h4>5. Settings Directory Screen (<code>settings.component.ts</code>)</h4>
+<ul>
+    <li>Structured as a directory of 3 clean folders with chevron arrows:
+        <ol>
+            <li><strong>Themes & Languages:</strong> Switches Theme Mode (System, Light, Dark) and Language (English, Marathi, Hindi).</li>
+            <li><strong>Data & Storage:</strong> Displays local backup folder path (<code>Documents/BalajiEarthmovers/</code>), <em>Backup All Data</em> button, <em>Restore from File</em> button, and <em>Clear All Records</em> button.</li>
+            <li><strong>Security:</strong> <em>Reset App Unlock PIN</em> and <em>Reset Admin PIN</em>.</li>
+        </ol>
+    </li>
+    <li>Tapping a folder opens its dedicated sub-view with a back button returning to the main settings directory.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>7. Multi-Language i18n Dictionary Specification</h2>
+<p>
+The application fully supports English, Marathi (मराठी), and Hindi (हिंदी). All strings must be externalized into TypeScript constant dictionaries in <code>src/app/core/services/i18n.service.ts</code>.
+</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Key</th>
+            <th>English</th>
+            <th>Marathi (मराठी)</th>
+            <th>Hindi (हिंदी)</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>appName</code></td>
+            <td>Balaji Earthmovers</td>
+            <td>बालाजी अर्थमूह्वर्स</td>
+            <td>बालाजी अर्थमूव्हर्स</td>
+        </tr>
+        <tr>
+            <td><code>appSubtitle</code></td>
+            <td>Kodoli</td>
+            <td>कोडोली</td>
+            <td>कोडोली</td>
+        </tr>
+        <tr>
+            <td><code>ownerTitle</code></td>
+            <td>Owner</td>
+            <td>मालक</td>
+            <td>मालिक</td>
+        </tr>
+        <tr>
+            <td><code>ownerName</code></td>
+            <td>Ajaysinh Jaysing Patil</td>
+            <td>अजयसिंह जयसिंग पाटील</td>
+            <td>अजयसिंह जयसिंग पाटिल</td>
+        </tr>
+        <tr>
+            <td><code>navDashboard</code></td>
+            <td>Dashboard</td>
+            <td>डॅशबोर्ड</td>
+            <td>डैशबोर्ड</td>
+        </tr>
+        <tr>
+            <td><code>navVehicle</code></td>
+            <td>Vehicle</td>
+            <td>वाहन</td>
+            <td>वाहन</td>
+        </tr>
+        <tr>
+            <td><code>navWork</code></td>
+            <td>Work</td>
+            <td>काम</td>
+            <td>काम</td>
+        </tr>
+        <tr>
+            <td><code>navCustomer</code></td>
+            <td>Customer</td>
+            <td>ग्राहक</td>
+            <td>ग्राहक</td>
+        </tr>
+        <tr>
+            <td><code>navDriver</code></td>
+            <td>Driver</td>
+            <td>चालक</td>
+            <td>चालक</td>
+        </tr>
+        <tr>
+            <td><code>navReports</code></td>
+            <td>Reports</td>
+            <td>अहवाल</td>
+            <td>रिपोर्ट्स</td>
+        </tr>
+        <tr>
+            <td><code>netEarnings</code></td>
+            <td>Net Earnings</td>
+            <td>निव्वळ नफा</td>
+            <td>शुद्ध कमाई</td>
+        </tr>
+        <tr>
+            <td><code>totalReceived</code></td>
+            <td>Total Received</td>
+            <td>एकूण जमा रक्कम</td>
+            <td>कुल प्राप्त राशि</td>
+        </tr>
+        <tr>
+            <td><code>totalSpent</code></td>
+            <td>Total Spend</td>
+            <td>एकूण खर्च</td>
+            <td>कुल खर्च</td>
+        </tr>
+        <tr>
+            <td><code>pendingToCollect</code></td>
+            <td>Pending from Clients</td>
+            <td>ग्राहकांकडून येणे बाकी</td>
+            <td>ग्राहकों से बकाया</td>
+        </tr>
+        <tr>
+            <td><code>serviceAlert</code></td>
+            <td>Service Alert</td>
+            <td>सर्व्हिसिंग अलर्ट</td>
+            <td>सर्विस अलर्ट</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>8. Implementation Roadmap for the Engineering Agent</h2>
+<ol>
+    <li><strong>Phase 1: Backend Setup (NestJS + PostgreSQL)</strong>
+        <ul>
+            <li>Initialize NestJS project with TypeORM and PostgreSQL connection.</li>
+            <li>Create the 7 entities with exact column types, indexes, and soft-delete capabilities.</li>
+            <li>Implement transactional services for Work creation (with initial income) and Work deletion (atomic reversion).</li>
+            <li>Implement Aadhaar AES-256 encryption service and PIN verification guards.</li>
+            <li>Build the PDF and CSV export endpoints in <code>ReportsService</code>.</li>
+        </ul>
+    </li>
+    <li><strong>Phase 2: Frontend Foundation (Angular 18+)</strong>
+        <ul>
+            <li>Configure Angular Material or Tailwind CSS with the exact hex color palette.</li>
+            <li>Setup Signals-based state management service and HTTP interceptors.</li>
+            <li>Implement the unified <code>BalajiTopBar</code> and bottom navigation bar (tonalElevation 0).</li>
+            <li>Build the 3.8s multi-phase <code>SplashScreen</code> and the animated <code>AppLockScreen</code>.</li>
+        </ul>
+    </li>
+    <li><strong>Phase 3: Module Implementation</strong>
+        <ul>
+            <li><strong>Dashboard:</strong> Hero Net Earnings card, 4 financial pillar cards, 250h service banner with reset button down.</li>
+            <li><strong>Fleet & Work:</strong> Vehicle cards with "Other" name option, Work cards supporting Hourly vs Fixed Amount.</li>
+            <li><strong>Directory:</strong> Driver cards with Passbook button, Customer cards with Passbook button.</li>
+            <li><strong>Passbooks:</strong> Driver timeline ledger (salary/advance/bonus) and Customer timeline ledger (billed vs received).</li>
+            <li><strong>Reports:</strong> Period chips, financial summary, PDF/CSV download.</li>
+            <li><strong>Settings:</strong> 3-folder directory navigation (Themes & Languages, Data & Storage, Security).</li>
+        </ul>
+    </li>
+    <li><strong>Phase 4: Verification & Acceptance Testing</strong>
+        <ul>
+            <li>Verify Work deletion correctly rolls back customer billed, customer paid, and vehicle hours.</li>
+            <li>Verify customer payment receipt starts with blank amount.</li>
+            <li>Verify 250h routine service trigger and reset behavior.</li>
+            <li>Verify no PIN values are displayed in text prompts.</li>
+        </ul>
+    </li>
+</ol>
+
+<div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #CBD5E1; font-size: 8.5pt; color: #64748B; text-align: center;">
+    Balaji Earthmovers Kodoli &bull; Owner: Ajaysinh Jaysing Patil &bull; Comprehensive Specification Document &bull; Generated for Angular + NestJS Implementation
+</div>
+
+</body>
+</html>
