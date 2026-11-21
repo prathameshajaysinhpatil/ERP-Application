@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,6 +25,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DriveEta
 import androidx.compose.material.icons.filled.Edit
@@ -31,6 +35,7 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -70,9 +75,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.example.balaji_earthmovers.data.local.entity.VehicleEntity
 import com.example.balaji_earthmovers.data.local.entity.WorkEntity
 import com.example.balaji_earthmovers.data.local.entity.WorkWithDetails
@@ -80,6 +88,7 @@ import com.example.balaji_earthmovers.ui.theme.AmberPrimary
 import com.example.balaji_earthmovers.ui.theme.ExpenseRed
 import com.example.balaji_earthmovers.ui.theme.InfoBlue
 import com.example.balaji_earthmovers.ui.theme.ProfitGreen
+import com.example.balaji_earthmovers.ui.util.CustomerShareUtils
 import com.example.balaji_earthmovers.ui.util.LocalStrings
 import com.example.balaji_earthmovers.ui.viewmodel.BalajiViewModel
 import com.example.balaji_earthmovers.ui.viewmodel.FleetSeasonFilter
@@ -419,6 +428,7 @@ fun WorkEntryDetailCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val context = LocalContext.current
     val work = workDetails.work
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -448,6 +458,42 @@ fun WorkEntryDetailCard(
                         style = MaterialTheme.typography.titleMedium,
                         color = ProfitGreen
                     )
+
+                    if (workDetails.customer.mobileNumber.isNotBlank()) {
+                        IconButton(
+                            onClick = {
+                                CustomerShareUtils.openWhatsApp(
+                                    context = context,
+                                    mobileNumber = workDetails.customer.mobileNumber,
+                                    customerName = workDetails.customer.name,
+                                    workName = work.workName,
+                                    dateMillis = work.date,
+                                    totalAmount = work.totalWorkAmount,
+                                    pendingAmount = workDetails.customer.pendingBalance
+                                )
+                            },
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(Icons.Default.ChatBubble, contentDescription = "WhatsApp Bill", tint = ProfitGreen, modifier = Modifier.size(16.dp))
+                        }
+                        IconButton(
+                            onClick = {
+                                CustomerShareUtils.openSms(
+                                    context = context,
+                                    mobileNumber = workDetails.customer.mobileNumber,
+                                    customerName = workDetails.customer.name,
+                                    workName = work.workName,
+                                    dateMillis = work.date,
+                                    totalAmount = work.totalWorkAmount,
+                                    pendingAmount = workDetails.customer.pendingBalance
+                                )
+                            },
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(Icons.Default.Sms, contentDescription = "SMS Bill", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit Work", tint = MaterialTheme.colorScheme.primary)
                     }
@@ -529,10 +575,60 @@ fun VehicleFormDialog(
         "GJ-01" to "Ahmedabad"
     )
     var codeDropdownExpanded by remember { mutableStateOf(false) }
+    var showOcrScanner by remember { mutableStateOf(false) }
+
+    if (showOcrScanner) {
+        DocumentScanDialog(
+            targetType = "Vehicle",
+            onDismiss = { showOcrScanner = false },
+            onDataExtracted = { scanned ->
+                if (scanned.vehicleNumber.isNotBlank()) {
+                    number = scanned.vehicleNumber
+                }
+                if (scanned.name.isNotBlank()) {
+                    val matchedPreset = vehicleTypePresets.find { it.contains(scanned.name, ignoreCase = true) }
+                    if (matchedPreset != null) {
+                        name = matchedPreset
+                        isOtherSelected = false
+                    } else {
+                        isOtherSelected = true
+                        customVehicleName = scanned.name
+                        name = scanned.name
+                    }
+                }
+                if (scanned.hours.isNotBlank()) {
+                    workedHours = scanned.hours
+                }
+            }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (vehicleToEdit == null) "Add Vehicle" else "Edit Vehicle", fontWeight = FontWeight.Bold) },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(if (vehicleToEdit == null) "Add Vehicle" else "Edit Vehicle", fontWeight = FontWeight.Bold)
+                OutlinedButton(
+                    onClick = { showOcrScanner = true },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Scan RC", fontSize = 11.sp)
+                }
+            }
+        },
         text = {
             Column(
                 modifier = Modifier
@@ -690,12 +786,21 @@ fun EditWorkDialog(
 ) {
     val work = workDetails.work
     var workName by remember { mutableStateOf(work.workName) }
-    var totalHours by remember { mutableStateOf(work.totalTimeHours.toString()) }
-    var hourlyRate by remember { mutableStateOf(work.hourlyRate.toString()) }
+    var isFixedAmount by remember { mutableStateOf(work.totalTimeHours <= 0.0 || work.hourlyRate <= 0.0) }
+    var fixedAmount by remember { mutableStateOf(work.totalWorkAmount.toString()) }
+    var totalHours by remember { mutableStateOf(if (work.totalTimeHours > 0.0) work.totalTimeHours.toString() else "") }
+    var hourlyRate by remember { mutableStateOf(if (work.hourlyRate > 0.0) work.hourlyRate.toString() else "") }
     var location by remember { mutableStateOf(work.location) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
         title = { Text("Edit Work", fontWeight = FontWeight.Bold) },
         text = {
             Column(
@@ -721,27 +826,69 @@ fun EditWorkDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
-                        value = totalHours,
-                        onValueChange = { totalHours = it },
-                        label = { Text("Hours *") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    FilterChip(
+                        selected = !isFixedAmount,
+                        onClick = { isFixedAmount = false },
+                        label = { Text("Hourly Work") },
                         modifier = Modifier.weight(1f)
                     )
-
-                    OutlinedTextField(
-                        value = hourlyRate,
-                        onValueChange = { hourlyRate = it },
-                        label = { Text("Rate (₹/h) *") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    FilterChip(
+                        selected = isFixedAmount,
+                        onClick = { isFixedAmount = true },
+                        label = { Text("Fixed Amount") },
                         modifier = Modifier.weight(1f)
                     )
                 }
 
-                val h = totalHours.toDoubleOrNull() ?: 0.0
-                val r = hourlyRate.toDoubleOrNull() ?: 0.0
+                if (isFixedAmount) {
+                    OutlinedTextField(
+                        value = fixedAmount,
+                        onValueChange = { fixedAmount = it },
+                        label = { Text("Fixed Work Amount (₹) *") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = totalHours,
+                        onValueChange = { totalHours = it },
+                        label = { Text("Hours Worked (Optional)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = totalHours,
+                            onValueChange = { totalHours = it },
+                            label = { Text("Hours *") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        OutlinedTextField(
+                            value = hourlyRate,
+                            onValueChange = { hourlyRate = it },
+                            label = { Text("Rate (₹/h) *") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                val calcAmount = if (isFixedAmount) {
+                    fixedAmount.toDoubleOrNull() ?: 0.0
+                } else {
+                    val h = totalHours.toDoubleOrNull() ?: 0.0
+                    val r = hourlyRate.toDoubleOrNull() ?: 0.0
+                    h * r
+                }
+
                 Text(
-                    "Calculated Amount: ₹${"%.2f".format(h * r)}",
+                    "Calculated Amount: ₹${"%.2f".format(calcAmount)}",
                     fontWeight = FontWeight.Bold,
                     color = ProfitGreen
                 )
@@ -757,18 +904,19 @@ fun EditWorkDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val h = totalHours.toDoubleOrNull() ?: work.totalTimeHours
-                    val r = hourlyRate.toDoubleOrNull() ?: work.hourlyRate
+                    val h = totalHours.toDoubleOrNull() ?: 0.0
+                    val r = hourlyRate.toDoubleOrNull() ?: 0.0
+                    val calcAmount = if (isFixedAmount) (fixedAmount.toDoubleOrNull() ?: work.totalWorkAmount) else (h * r)
                     val updated = work.copy(
                         workName = workName.trim(),
                         totalTimeHours = h,
-                        hourlyRate = r,
-                        totalWorkAmount = h * r,
+                        hourlyRate = if (isFixedAmount) 0.0 else r,
+                        totalWorkAmount = calcAmount,
                         location = location.trim()
                     )
                     viewModel.editWork(updated) { onDismiss() }
                 },
-                enabled = workName.isNotBlank() && (totalHours.toDoubleOrNull() ?: 0.0) > 0.0
+                enabled = workName.isNotBlank() && (if (isFixedAmount) (fixedAmount.toDoubleOrNull() ?: 0.0) > 0.0 else (totalHours.toDoubleOrNull() ?: 0.0) > 0.0)
             ) {
                 Text("Update Work")
             }

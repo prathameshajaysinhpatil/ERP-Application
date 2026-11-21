@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -84,6 +85,7 @@ sealed class NavItem(val route: String, val icon: ImageVector) {
     object Work : NavItem("work", Icons.Default.Assignment)
     object Customer : NavItem("customer", Icons.Default.People)
     object Driver : NavItem("driver", Icons.Default.Person)
+    object Ledger : NavItem("ledger", Icons.Default.AccountBalanceWallet)
     object Report : NavItem("report", Icons.Default.Assessment)
 }
 
@@ -224,6 +226,7 @@ fun MainErpApp(
                                 NavItem.Work,
                                 NavItem.Customer,
                                 NavItem.Driver,
+                                NavItem.Ledger,
                                 NavItem.Report
                             )
                             items.forEach { item ->
@@ -233,6 +236,7 @@ fun MainErpApp(
                                     NavItem.Work -> strings.navWork
                                     NavItem.Customer -> strings.navCustomer
                                     NavItem.Driver -> strings.navDriver
+                                    NavItem.Ledger -> strings.navLedgerShort
                                     NavItem.Report -> strings.navReports
                                 }
                                 NavigationBarItem(
@@ -308,6 +312,10 @@ fun MainErpApp(
                                 },
                                 onNavigateToAging = { isViewingAgingScreen = true },
                                 initialTab = 0
+                            )
+                            NavItem.Ledger -> LedgerScreen(
+                                viewModel = viewModel,
+                                onBack = null
                             )
                             NavItem.Report -> ReportsScreen(
                                 viewModel = viewModel

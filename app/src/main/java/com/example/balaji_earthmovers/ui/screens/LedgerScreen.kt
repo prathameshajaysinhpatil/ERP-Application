@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -58,6 +60,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.example.balaji_earthmovers.data.local.entity.ExpenseEntity
 import com.example.balaji_earthmovers.data.local.entity.ExpenseType
 import com.example.balaji_earthmovers.data.local.entity.IncomeEntity
@@ -129,27 +133,48 @@ fun LedgerScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(
-                    selected = selectedTab == 0,
+            // Top Selection Buttons: Income or Expense
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Expense Option Button
+                Button(
                     onClick = { selectedTab = 0 },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Default.ArrowDownward, contentDescription = null, tint = ExpenseRed, modifier = Modifier.size(16.dp))
-                            Text("${strings.tabExpense} (₹${"%.0f".format(totalExpense)})", fontWeight = FontWeight.SemiBold)
-                        }
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (selectedTab == 0) ExpenseRed else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (selectedTab == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(strings.tabExpense, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("₹${"%.0f".format(totalExpense)}", fontSize = 11.sp)
                     }
-                )
-                Tab(
-                    selected = selectedTab == 1,
+                }
+
+                // Income Option Button
+                Button(
                     onClick = { selectedTab = 1 },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Default.ArrowUpward, contentDescription = null, tint = ProfitGreen, modifier = Modifier.size(16.dp))
-                            Text("${strings.tabIncome} (₹${"%.0f".format(totalIncome)})", fontWeight = FontWeight.SemiBold)
-                        }
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (selectedTab == 1) ProfitGreen else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (selectedTab == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.ArrowUpward, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(strings.tabIncome, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("₹${"%.0f".format(totalIncome)}", fontSize = 11.sp)
                     }
-                )
+                }
             }
 
             if (selectedTab == 0) {
@@ -418,6 +443,13 @@ fun EditExpenseDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
         title = { Text("Edit Expense", fontWeight = FontWeight.Bold) },
         text = {
             Column(
@@ -521,6 +553,13 @@ fun EditIncomeDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
         title = { Text("Edit Income", fontWeight = FontWeight.Bold) },
         text = {
             Column(
@@ -627,6 +666,13 @@ fun AddExpenseDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
         title = { Text("Add Expense", fontWeight = FontWeight.Bold) },
         text = {
             Column(
@@ -802,10 +848,19 @@ fun AddIncomePaymentDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
         title = { Text("Add Income", fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ExposedDropdownMenuBox(

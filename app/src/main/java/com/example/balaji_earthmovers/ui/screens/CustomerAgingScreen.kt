@@ -10,20 +10,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -53,14 +58,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.example.balaji_earthmovers.data.local.entity.CustomerEntity
 import com.example.balaji_earthmovers.data.local.entity.PaymentMode
 import com.example.balaji_earthmovers.ui.theme.ExpenseRed
 import com.example.balaji_earthmovers.ui.theme.ProfitGreen
+import com.example.balaji_earthmovers.ui.util.CustomerShareUtils
 import com.example.balaji_earthmovers.ui.viewmodel.BalajiViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -230,6 +238,7 @@ fun SimpleCustomerReceivableCard(
     onOpenPassbook: () -> Unit,
     onReceivePayment: () -> Unit
 ) {
+    val context = LocalContext.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -320,7 +329,47 @@ fun SimpleCustomerReceivableCard(
                     fontSize = 11.5.sp
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (customer.mobileNumber.isNotBlank()) {
+                        IconButton(
+                            onClick = { CustomerShareUtils.makeCall(context, customer.mobileNumber) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Call, contentDescription = "Call", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        }
+                        IconButton(
+                            onClick = {
+                                CustomerShareUtils.openWhatsApp(
+                                    context = context,
+                                    mobileNumber = customer.mobileNumber,
+                                    customerName = customer.name,
+                                    totalAmount = customer.totalBilled,
+                                    pendingAmount = customer.pendingBalance
+                                )
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.ChatBubble, contentDescription = "WhatsApp", tint = ProfitGreen, modifier = Modifier.size(16.dp))
+                        }
+                        IconButton(
+                            onClick = {
+                                CustomerShareUtils.openSms(
+                                    context = context,
+                                    mobileNumber = customer.mobileNumber,
+                                    customerName = customer.name,
+                                    totalAmount = customer.totalBilled,
+                                    pendingAmount = customer.pendingBalance
+                                )
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Sms, contentDescription = "SMS", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+
                     OutlinedButton(
                         onClick = onOpenPassbook,
                         shape = RoundedCornerShape(8.dp)
@@ -361,12 +410,21 @@ fun RecordCustomerPaymentDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
         title = {
             Text("Receive Payment: ${customer.name}", fontWeight = FontWeight.Bold)
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(

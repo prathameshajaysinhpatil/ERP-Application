@@ -1,22 +1,27 @@
 package com.example.balaji_earthmovers.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DriveEta
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -28,7 +33,9 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,10 +46,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.example.balaji_earthmovers.data.local.entity.PaymentMode
+import com.example.balaji_earthmovers.ui.theme.ExpenseRed
+import com.example.balaji_earthmovers.ui.theme.ProfitGreen
 import com.example.balaji_earthmovers.ui.viewmodel.BalajiViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,20 +73,80 @@ fun WorkEntryDialog(
     var customerExpanded by remember { mutableStateOf(false) }
     var paymentModeExpanded by remember { mutableStateOf(false) }
 
+    var showOcrScanner by remember { mutableStateOf(false) }
+
+    if (showOcrScanner) {
+        DocumentScanDialog(
+            targetType = "Work",
+            onDismiss = { showOcrScanner = false },
+            onDataExtracted = { scanned ->
+                viewModel.updateWorkForm { s ->
+                    // Match vehicle from scanned vehicleNumber or text
+                    val matchedVehicle = vehicles.find { v ->
+                        scanned.vehicleNumber.isNotBlank() &&
+                        (v.vehicleNumber.contains(scanned.vehicleNumber, ignoreCase = true) ||
+                         scanned.vehicleNumber.contains(v.vehicleNumber.replace("-", ""), ignoreCase = true))
+                    }
+                    val vehicleId = matchedVehicle?.id ?: s.selectedVehicleId
+                    val driverId = matchedVehicle?.currentDriverId ?: s.selectedDriverId
+
+                    // Match customer from scanned name
+                    val matchedCust = customers.find { c ->
+                        (scanned.name.isNotBlank() && c.name.contains(scanned.name, ignoreCase = true)) ||
+                        (scanned.mobileNumber.isNotBlank() && c.mobileNumber == scanned.mobileNumber)
+                    }
+                    val custId = matchedCust?.id ?: s.selectedCustomerId
+
+                    s.copy(
+                        workName = if (scanned.name.isNotBlank()) "Site - ${scanned.name}" else s.workName,
+                        selectedVehicleId = vehicleId,
+                        selectedDriverId = driverId,
+                        selectedCustomerId = custId,
+                        totalHours = if (scanned.hours.isNotBlank()) scanned.hours else s.totalHours,
+                        hourlyRate = if (scanned.rate.isNotBlank()) scanned.rate else s.hourlyRate,
+                        fixedAmount = if (scanned.amount.isNotBlank()) scanned.amount else s.fixedAmount,
+                        initialPaidAmount = if (scanned.amount.isNotBlank() && s.isFixedAmount) scanned.amount else s.initialPaidAmount
+                    )
+                }
+            }
+        )
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
         title = {
-            Text("Add Work", fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Add Work Entry", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                OutlinedButton(
+                    onClick = { showOcrScanner = true },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Scan Slip", fontSize = 11.sp)
+                }
+            }
         },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    "Creating this entry atomically increments vehicle worked hours, bills the customer, and generates an income record.",
+                    "Assign vehicle, driver & customer. Enter hours/rate or fixed amount and the exact payment received.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -172,7 +244,7 @@ fun WorkEntryDialog(
                 ) {
                     val selectedCustomer = customers.find { it.id == formState.selectedCustomerId }
                     OutlinedTextField(
-                        value = selectedCustomer?.name ?: "",
+                        value = selectedCustomer?.let { "${it.name} (${it.mobileNumber})" } ?: "",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Customer / Client *") },
@@ -265,25 +337,136 @@ fun WorkEntryDialog(
                     }
                 }
 
-                // Total Calculation Card
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                // ==================== WORK PAYMENT (EXACT AMOUNT PAID) ====================
+                // Prominently placed directly below both Fixed & Hourly payment modes
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Total Work Amount:", fontWeight = FontWeight.SemiBold)
                         Text(
-                            "₹${"%.2f".format(formState.totalAmount)}",
+                            "Work Payment / Exact Amount Received:",
                             fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.primary
                         )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = formState.initialPaidAmount,
+                                onValueChange = { viewModel.updateWorkForm { s -> s.copy(initialPaidAmount = it) } },
+                                label = { Text("Amount Paid (₹) *") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                modifier = Modifier.weight(1.2f)
+                            )
+
+                            // Payment Mode Dropdown
+                            ExposedDropdownMenuBox(
+                                expanded = paymentModeExpanded,
+                                onExpandedChange = { paymentModeExpanded = it },
+                                modifier = Modifier.weight(0.9f)
+                            ) {
+                                OutlinedTextField(
+                                    value = formState.paymentMode.name,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Mode") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = paymentModeExpanded) },
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = paymentModeExpanded,
+                                    onDismissRequest = { paymentModeExpanded = false }
+                                ) {
+                                    PaymentMode.values().forEach { mode ->
+                                        DropdownMenuItem(
+                                            text = { Text(mode.name) },
+                                            onClick = {
+                                                viewModel.updateWorkForm { s -> s.copy(paymentMode = mode) }
+                                                paymentModeExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Quick Fill Amount Buttons
+                        val calcTotal = formState.totalAmount
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.updateWorkForm { s -> s.copy(initialPaidAmount = "0") } },
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Unpaid (₹0)", fontSize = 11.sp)
+                            }
+                            Button(
+                                onClick = { viewModel.updateWorkForm { s -> s.copy(initialPaidAmount = "%.0f".format(calcTotal)) } },
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.weight(1.3f)
+                            ) {
+                                Text("Full (₹${"%.0f".format(calcTotal)})", fontSize = 11.sp)
+                            }
+                        }
+
+                        // Real-time Calculated Pending Balance
+                        val paid = formState.initialPaidAmount.toDoubleOrNull() ?: 0.0
+                        val pending = (calcTotal - paid).coerceAtLeast(0.0)
+
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (pending > 0.0) ExpenseRed.copy(alpha = 0.08f) else ProfitGreen.copy(alpha = 0.08f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Total Work Amount", style = MaterialTheme.typography.labelSmall)
+                                    Text("₹${"%.2f".format(calcTotal)}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("Paid", style = MaterialTheme.typography.labelSmall)
+                                    Text("₹${"%.2f".format(paid)}", fontWeight = FontWeight.Bold, color = ProfitGreen, fontSize = 13.sp)
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("Remaining Pending", style = MaterialTheme.typography.labelSmall)
+                                    Text(
+                                        "₹${"%.2f".format(pending)}",
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (pending > 0.0) ExpenseRed else ProfitGreen,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        if (paid > 0.0) {
+                            OutlinedTextField(
+                                value = formState.transactionRef,
+                                onValueChange = { viewModel.updateWorkForm { s -> s.copy(transactionRef = it) } },
+                                label = { Text("Reference ID / UTR / Cheque No.") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
 
@@ -295,59 +478,6 @@ fun WorkEntryDialog(
                     leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth()
                 )
-
-                // Initial Payment
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = formState.initialPaidAmount,
-                        onValueChange = { viewModel.updateWorkForm { s -> s.copy(initialPaidAmount = it) } },
-                        label = { Text("Initial Payment Received (₹)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // Payment Mode Dropdown
-                    ExposedDropdownMenuBox(
-                        expanded = paymentModeExpanded,
-                        onExpandedChange = { paymentModeExpanded = it },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        OutlinedTextField(
-                            value = formState.paymentMode.name,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Mode") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = paymentModeExpanded) },
-                            modifier = Modifier.menuAnchor()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = paymentModeExpanded,
-                            onDismissRequest = { paymentModeExpanded = false }
-                        ) {
-                            PaymentMode.values().forEach { mode ->
-                                DropdownMenuItem(
-                                    text = { Text(mode.name) },
-                                    onClick = {
-                                        viewModel.updateWorkForm { s -> s.copy(paymentMode = mode) }
-                                        paymentModeExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if ((formState.initialPaidAmount.toDoubleOrNull() ?: 0.0) > 0.0) {
-                    OutlinedTextField(
-                        value = formState.transactionRef,
-                        onValueChange = { viewModel.updateWorkForm { s -> s.copy(transactionRef = it) } },
-                        label = { Text("Reference ID / UTR / Cheque No.") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
             }
         },
         confirmButton = {

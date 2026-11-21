@@ -40,3 +40,7 @@ Thumbs.db
 # CMake / C++ build outputs
 .cxx/
 .externalNativeBuild/
+
+# Local runner helpers
+powershell.bat
+

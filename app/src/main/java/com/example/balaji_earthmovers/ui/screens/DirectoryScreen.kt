@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DriveEta
 import androidx.compose.material.icons.filled.Edit
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -60,14 +64,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.example.balaji_earthmovers.data.local.entity.CustomerEntity
 import com.example.balaji_earthmovers.data.local.entity.DriverEntity
 import com.example.balaji_earthmovers.data.security.CryptoManager
 import com.example.balaji_earthmovers.ui.theme.ExpenseRed
 import com.example.balaji_earthmovers.ui.theme.ProfitGreen
+import com.example.balaji_earthmovers.ui.util.CustomerShareUtils
 import com.example.balaji_earthmovers.ui.util.LocalStrings
 import com.example.balaji_earthmovers.ui.viewmodel.BalajiViewModel
 
@@ -360,6 +367,7 @@ fun CustomerDirectoryCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val context = LocalContext.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(2.dp),
@@ -378,9 +386,47 @@ fun CustomerDirectoryCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(customer.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Text(customer.mobileNumber, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (customer.mobileNumber.isNotBlank()) {
+                            IconButton(
+                                onClick = { CustomerShareUtils.makeCall(context, customer.mobileNumber) },
+                                modifier = Modifier.size(26.dp)
+                            ) {
+                                Icon(Icons.Default.Call, contentDescription = "Call", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                            }
+                            IconButton(
+                                onClick = {
+                                    CustomerShareUtils.openWhatsApp(
+                                        context = context,
+                                        mobileNumber = customer.mobileNumber,
+                                        customerName = customer.name,
+                                        totalAmount = customer.totalBilled,
+                                        pendingAmount = customer.pendingBalance
+                                    )
+                                },
+                                modifier = Modifier.size(26.dp)
+                            ) {
+                                Icon(Icons.Default.ChatBubble, contentDescription = "WhatsApp", tint = ProfitGreen, modifier = Modifier.size(15.dp))
+                            }
+                            IconButton(
+                                onClick = {
+                                    CustomerShareUtils.openSms(
+                                        context = context,
+                                        mobileNumber = customer.mobileNumber,
+                                        customerName = customer.name,
+                                        totalAmount = customer.totalBilled,
+                                        pendingAmount = customer.pendingBalance
+                                    )
+                                },
+                                modifier = Modifier.size(26.dp)
+                            ) {
+                                Icon(Icons.Default.Sms, contentDescription = "SMS", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                            }
+                        }
                     }
                     if (customer.gstin.isNotBlank()) {
                         Text("GSTIN: ${customer.gstin}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -456,6 +502,13 @@ fun EditDriverDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
         title = { Text("Edit Driver", fontWeight = FontWeight.Bold) },
         text = {
             Column(
@@ -545,6 +598,13 @@ fun EditCustomerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
         title = { Text("Edit Customer", fontWeight = FontWeight.Bold) },
         text = {
             Column(
@@ -616,13 +676,55 @@ fun AddDriverDialog(
     onDismiss: () -> Unit
 ) {
     val formState by viewModel.driverFormState.collectAsState()
+    var showOcrScanner by remember { mutableStateOf(false) }
+
+    if (showOcrScanner) {
+        DocumentScanDialog(
+            targetType = "Driver",
+            onDismiss = { showOcrScanner = false },
+            onDataExtracted = { scanned ->
+                viewModel.updateDriverForm { s ->
+                    s.copy(
+                        name = if (scanned.name.isNotBlank()) scanned.name else s.name,
+                        mobile = if (scanned.mobileNumber.isNotBlank()) scanned.mobileNumber else s.mobile,
+                        aadhaar = if (scanned.aadhaarNumber.isNotBlank()) scanned.aadhaarNumber else s.aadhaar
+                    )
+                }
+            }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Driver", fontWeight = FontWeight.Bold) },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Add Driver", fontWeight = FontWeight.Bold)
+                OutlinedButton(
+                    onClick = { showOcrScanner = true },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Scan Aadhaar", fontSize = 11.sp)
+                }
+            }
+        },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedTextField(
@@ -697,13 +799,55 @@ fun AddCustomerDialog(
     onDismiss: () -> Unit
 ) {
     val formState by viewModel.customerFormState.collectAsState()
+    var showOcrScanner by remember { mutableStateOf(false) }
+
+    if (showOcrScanner) {
+        DocumentScanDialog(
+            targetType = "Customer",
+            onDismiss = { showOcrScanner = false },
+            onDataExtracted = { scanned ->
+                viewModel.updateCustomerForm { s ->
+                    s.copy(
+                        name = if (scanned.name.isNotBlank()) scanned.name else s.name,
+                        mobile = if (scanned.mobileNumber.isNotBlank()) scanned.mobileNumber else s.mobile,
+                        gstin = if (scanned.gstin.isNotBlank()) scanned.gstin else s.gstin
+                    )
+                }
+            }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Customer", fontWeight = FontWeight.Bold) },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .imePadding(),
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Add Customer", fontWeight = FontWeight.Bold)
+                OutlinedButton(
+                    onClick = { showOcrScanner = true },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Scan Card", fontSize = 11.sp)
+                }
+            }
+        },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedTextField(

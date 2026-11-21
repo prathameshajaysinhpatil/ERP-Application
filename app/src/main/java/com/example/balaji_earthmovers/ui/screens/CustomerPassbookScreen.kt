@@ -24,8 +24,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -59,6 +61,7 @@ import com.example.balaji_earthmovers.data.local.entity.IncomeEntity
 import com.example.balaji_earthmovers.data.local.entity.WorkEntity
 import com.example.balaji_earthmovers.ui.theme.ExpenseRed
 import com.example.balaji_earthmovers.ui.theme.ProfitGreen
+import com.example.balaji_earthmovers.ui.util.CustomerShareUtils
 import com.example.balaji_earthmovers.ui.viewmodel.BalajiViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -116,12 +119,31 @@ fun CustomerPassbookScreen(
                 actions = {
                     if (liveCustomer.mobileNumber.isNotBlank()) {
                         IconButton(onClick = {
-                            val intent = Intent(Intent.ACTION_DIAL).apply {
-                                data = Uri.parse("tel:${liveCustomer.mobileNumber}")
-                            }
-                            context.startActivity(intent)
+                            CustomerShareUtils.makeCall(context, liveCustomer.mobileNumber)
                         }) {
-                            Icon(Icons.Default.Call, contentDescription = "Call Customer", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Call, contentDescription = "Call Customer", tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                        IconButton(onClick = {
+                            CustomerShareUtils.openWhatsApp(
+                                context = context,
+                                mobileNumber = liveCustomer.mobileNumber,
+                                customerName = liveCustomer.name,
+                                totalAmount = liveCustomer.totalBilled,
+                                pendingAmount = liveCustomer.pendingBalance
+                            )
+                        }) {
+                            Icon(Icons.Default.ChatBubble, contentDescription = "WhatsApp Bill", tint = ProfitGreen)
+                        }
+                        IconButton(onClick = {
+                            CustomerShareUtils.openSms(
+                                context = context,
+                                mobileNumber = liveCustomer.mobileNumber,
+                                customerName = liveCustomer.name,
+                                totalAmount = liveCustomer.totalBilled,
+                                pendingAmount = liveCustomer.pendingBalance
+                            )
+                        }) {
+                            Icon(Icons.Default.Sms, contentDescription = "SMS Bill", tint = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     }
                 },
@@ -246,7 +268,7 @@ fun CustomerPassbookScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(entries) { entry ->
-                        CustomerPassbookBubble(entry)
+                        CustomerPassbookBubble(entry, liveCustomer)
                     }
                 }
             }
@@ -263,7 +285,11 @@ fun CustomerPassbookScreen(
 }
 
 @Composable
-fun CustomerPassbookBubble(entry: CustomerPassbookEntry) {
+fun CustomerPassbookBubble(
+    entry: CustomerPassbookEntry,
+    customer: CustomerEntity
+) {
+    val context = LocalContext.current
     val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
 
     when (entry) {
@@ -330,12 +356,55 @@ fun CustomerPassbookBubble(entry: CustomerPassbookEntry) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        Text(
-                            text = dateFormat.format(Date(work.date)),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            fontSize = 10.5.sp
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = dateFormat.format(Date(work.date)),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                fontSize = 10.5.sp
+                            )
+
+                            if (customer.mobileNumber.isNotBlank()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    IconButton(
+                                        onClick = {
+                                            CustomerShareUtils.openWhatsApp(
+                                                context = context,
+                                                mobileNumber = customer.mobileNumber,
+                                                customerName = customer.name,
+                                                workName = work.workName,
+                                                dateMillis = work.date,
+                                                totalAmount = work.totalWorkAmount,
+                                                pendingAmount = customer.pendingBalance
+                                            )
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(Icons.Default.ChatBubble, contentDescription = "WhatsApp Bill", tint = ProfitGreen, modifier = Modifier.size(15.dp))
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            CustomerShareUtils.openSms(
+                                                context = context,
+                                                mobileNumber = customer.mobileNumber,
+                                                customerName = customer.name,
+                                                workName = work.workName,
+                                                dateMillis = work.date,
+                                                totalAmount = work.totalWorkAmount,
+                                                pendingAmount = customer.pendingBalance
+                                            )
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(Icons.Default.Sms, contentDescription = "SMS Bill", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
