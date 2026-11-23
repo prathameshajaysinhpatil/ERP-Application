@@ -35,6 +35,7 @@ data class DriverEntity(
     val assignedVehicleId: String? = null,
     val totalLeaves: Int = 0,
     val workingDaysMonthly: Map<String, Int> = emptyMap(),
+    val imageUri: String? = null,
     val deletedAt: Long? = null
 ) {
     /**

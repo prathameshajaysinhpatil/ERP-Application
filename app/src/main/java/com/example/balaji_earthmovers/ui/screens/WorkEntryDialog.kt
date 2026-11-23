@@ -337,7 +337,7 @@ fun WorkEntryDialog(
                     }
                 }
 
-                // ==================== WORK PAYMENT (EXACT AMOUNT PAID) ====================
+                // ==================== WORK PAYMENT (EXACT AMOUNT PAID & FINAL SETTLED AMOUNT) ====================
                 // Prominently placed directly below both Fixed & Hourly payment modes
                 Surface(
                     shape = RoundedCornerShape(10.dp),
@@ -351,10 +351,29 @@ fun WorkEntryDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            "Work Payment / Exact Amount Received:",
+                            "Work Payment & Final Settlement:",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.primary
+                        )
+
+                        // Final Negotiated / Settled Amount Field (Bargain/Discounted Total)
+                        OutlinedTextField(
+                            value = formState.finalSettledAmount,
+                            onValueChange = { viewModel.updateWorkForm { s -> s.copy(finalSettledAmount = it) } },
+                            label = { Text("Final Settled Amount (₹) / ठरलेली अंतिम रक्कम") },
+                            placeholder = { Text("Calculated: ₹${"%.0f".format(formState.totalAmount)} (Enter if bargained)") },
+                            supportingText = {
+                                Text(
+                                    if (formState.finalSettledAmount.isNotBlank())
+                                        "Negotiated final amount will be billed instead of ₹${"%.0f".format(formState.totalAmount)}"
+                                    else
+                                        "Leave blank to use calculated amount (₹${"%.0f".format(formState.totalAmount)})",
+                                    fontSize = 11.sp
+                                )
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.fillMaxWidth()
                         )
 
                         Row(
@@ -400,29 +419,8 @@ fun WorkEntryDialog(
                             }
                         }
 
-                        // Quick Fill Amount Buttons
-                        val calcTotal = formState.totalAmount
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.updateWorkForm { s -> s.copy(initialPaidAmount = "0") } },
-                                shape = RoundedCornerShape(6.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Unpaid (₹0)", fontSize = 11.sp)
-                            }
-                            Button(
-                                onClick = { viewModel.updateWorkForm { s -> s.copy(initialPaidAmount = "%.0f".format(calcTotal)) } },
-                                shape = RoundedCornerShape(6.dp),
-                                modifier = Modifier.weight(1.3f)
-                            ) {
-                                Text("Full (₹${"%.0f".format(calcTotal)})", fontSize = 11.sp)
-                            }
-                        }
-
-                        // Real-time Calculated Pending Balance
+                        // Real-time Calculated Pending Balance using Effective Billed Amount
+                        val calcTotal = formState.effectiveBilledAmount
                         val paid = formState.initialPaidAmount.toDoubleOrNull() ?: 0.0
                         val pending = (calcTotal - paid).coerceAtLeast(0.0)
 
@@ -440,7 +438,7 @@ fun WorkEntryDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text("Total Work Amount", style = MaterialTheme.typography.labelSmall)
+                                    Text("Billed Amount", style = MaterialTheme.typography.labelSmall)
                                     Text("₹${"%.2f".format(calcTotal)}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -1,5 +1,9 @@
 package com.example.balaji_earthmovers.ui.screens
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -23,12 +27,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.DriveEta
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
@@ -89,6 +95,7 @@ import com.example.balaji_earthmovers.ui.theme.ExpenseRed
 import com.example.balaji_earthmovers.ui.theme.InfoBlue
 import com.example.balaji_earthmovers.ui.theme.ProfitGreen
 import com.example.balaji_earthmovers.ui.util.CustomerShareUtils
+import com.example.balaji_earthmovers.ui.util.EntityAvatar
 import com.example.balaji_earthmovers.ui.util.LocalStrings
 import com.example.balaji_earthmovers.ui.viewmodel.BalajiViewModel
 import com.example.balaji_earthmovers.ui.viewmodel.FleetSeasonFilter
@@ -325,9 +332,21 @@ fun VehicleCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(vehicle.vehicleName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Text("Number: ${vehicle.vehicleNumber} • Model: ${vehicle.model}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    EntityAvatar(
+                        imageUri = vehicle.imageUri,
+                        fallbackIcon = Icons.Default.DirectionsCar,
+                        contentDescription = vehicle.vehicleName,
+                        size = 50.dp
+                    )
+                    Column {
+                        Text(vehicle.vehicleName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("Number: ${vehicle.vehicleNumber} • Model: ${vehicle.model}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -531,10 +550,21 @@ fun VehicleFormDialog(
     viewModel: BalajiViewModel,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf(vehicleToEdit?.vehicleName ?: "") }
     var number by remember { mutableStateOf(vehicleToEdit?.vehicleNumber ?: "") }
     var model by remember { mutableStateOf(vehicleToEdit?.model ?: "") }
     var workedHours by remember { mutableStateOf(vehicleToEdit?.workedHours?.toString() ?: "0.0") }
+    var imageUri by remember { mutableStateOf(vehicleToEdit?.imageUri) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) {}
+            imageUri = it.toString()
+        }
+    }
 
     val vehicleTypePresets = listOf(
         "JCB 3DX",
@@ -636,6 +666,28 @@ fun VehicleFormDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Vehicle Photo Picker Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    EntityAvatar(
+                        imageUri = imageUri,
+                        fallbackIcon = Icons.Default.DirectionsCar,
+                        contentDescription = "Vehicle Photo",
+                        size = 56.dp
+                    )
+                    OutlinedButton(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.AddAPhoto, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (imageUri != null) "Change Photo" else "Upload Photo (वाहन फोटो)", fontSize = 12.sp)
+                    }
+                }
+
                 // Vehicle Name with preset dropdown
                 ExposedDropdownMenuBox(
                     expanded = nameDropdownExpanded,
@@ -751,7 +803,8 @@ fun VehicleFormDialog(
                             model = model.trim(),
                             workedHours = hrs,
                             lastServiceHours = hrs,
-                            purchaseDate = System.currentTimeMillis()
+                            purchaseDate = System.currentTimeMillis(),
+                            imageUri = imageUri
                         )
                         viewModel.submitVehicle(newV) { onDismiss() }
                     } else {
@@ -759,7 +812,8 @@ fun VehicleFormDialog(
                             vehicleName = name.trim(),
                             vehicleNumber = number.trim().uppercase(),
                             model = model.trim(),
-                            workedHours = hrs
+                            workedHours = hrs,
+                            imageUri = imageUri
                         )
                         viewModel.editVehicle(updated) { onDismiss() }
                     }
@@ -790,6 +844,7 @@ fun EditWorkDialog(
     var fixedAmount by remember { mutableStateOf(work.totalWorkAmount.toString()) }
     var totalHours by remember { mutableStateOf(if (work.totalTimeHours > 0.0) work.totalTimeHours.toString() else "") }
     var hourlyRate by remember { mutableStateOf(if (work.hourlyRate > 0.0) work.hourlyRate.toString() else "") }
+    var finalSettledAmount by remember { mutableStateOf(work.finalSettledAmount?.toString() ?: "") }
     var location by remember { mutableStateOf(work.location) }
 
     AlertDialog(
@@ -887,8 +942,19 @@ fun EditWorkDialog(
                     h * r
                 }
 
+                OutlinedTextField(
+                    value = finalSettledAmount,
+                    onValueChange = { finalSettledAmount = it },
+                    label = { Text("Final Settled Amount (₹) / ठरलेली रक्कम") },
+                    placeholder = { Text("Calculated: ₹${"%.0f".format(calcAmount)} (Enter if bargained)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                val effectiveAmount = finalSettledAmount.toDoubleOrNull() ?: calcAmount
+
                 Text(
-                    "Calculated Amount: ₹${"%.2f".format(calcAmount)}",
+                    "Billed Total: ₹${"%.2f".format(effectiveAmount)}",
                     fontWeight = FontWeight.Bold,
                     color = ProfitGreen
                 )
@@ -906,12 +972,15 @@ fun EditWorkDialog(
                 onClick = {
                     val h = totalHours.toDoubleOrNull() ?: 0.0
                     val r = hourlyRate.toDoubleOrNull() ?: 0.0
-                    val calcAmount = if (isFixedAmount) (fixedAmount.toDoubleOrNull() ?: work.totalWorkAmount) else (h * r)
+                    val calc = if (isFixedAmount) (fixedAmount.toDoubleOrNull() ?: work.totalWorkAmount) else (h * r)
+                    val finalVal = finalSettledAmount.toDoubleOrNull()
+                    val effective = finalVal ?: calc
                     val updated = work.copy(
                         workName = workName.trim(),
                         totalTimeHours = h,
                         hourlyRate = if (isFixedAmount) 0.0 else r,
-                        totalWorkAmount = calcAmount,
+                        totalWorkAmount = effective,
+                        finalSettledAmount = finalVal,
                         location = location.trim()
                     )
                     viewModel.editWork(updated) { onDismiss() }

@@ -5,6 +5,8 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,24 +26,35 @@ import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +63,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -89,6 +103,7 @@ sealed class NavItem(val route: String, val icon: ImageVector) {
     object Report : NavItem("report", Icons.Default.Assessment)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainErpApp(
     viewModel: BalajiViewModel = viewModel()
@@ -100,6 +115,7 @@ fun MainErpApp(
     var isAppUnlocked by remember { mutableStateOf(false) }
     var isViewingSettings by remember { mutableStateOf(false) }
     var isViewingLedger by remember { mutableStateOf(false) }
+    var showHamburgerMenu by remember { mutableStateOf(false) }
 
     var currentTab by remember { mutableStateOf<NavItem>(NavItem.Dashboard) }
     var viewingPassbookDriver by remember { mutableStateOf<DriverEntity?>(null) }
@@ -141,6 +157,7 @@ fun MainErpApp(
         // Step 3: Back button handler - navigates back logically instead of instantly closing the app
         BackHandler(enabled = true) {
             when {
+                showHamburgerMenu -> showHamburgerMenu = false
                 showWorkEntryDialog -> showWorkEntryDialog = false
                 showExpenseDialog -> showExpenseDialog = false
                 isViewingSettings -> isViewingSettings = false
@@ -208,10 +225,13 @@ fun MainErpApp(
                     snackbarHost = { SnackbarHost(snackbarHostState) },
                     topBar = {
                         BalajiTopBar(
-                            onOpenSettings = { isViewingSettings = true }
+                            viewModel = viewModel,
+                            onOpenSettings = { isViewingSettings = true },
+                            onOpenMenu = { showHamburgerMenu = true }
                         )
                     },
                     bottomBar = {
+                        // Display ONLY 4 primary tabs on main screen: Dashboard, Work, Customer, Khata
                         NavigationBar(
                             containerColor = MaterialTheme.colorScheme.surface,
                             tonalElevation = 0.dp,
@@ -220,24 +240,19 @@ fun MainErpApp(
                                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                             )
                         ) {
-                            val items = listOf(
+                            val primaryItems = listOf(
                                 NavItem.Dashboard,
-                                NavItem.Vehicle,
                                 NavItem.Work,
                                 NavItem.Customer,
-                                NavItem.Driver,
-                                NavItem.Ledger,
-                                NavItem.Report
+                                NavItem.Ledger
                             )
-                            items.forEach { item ->
+                            primaryItems.forEach { item ->
                                 val title = when (item) {
                                     NavItem.Dashboard -> strings.navDashboard
-                                    NavItem.Vehicle -> strings.navVehicle
                                     NavItem.Work -> strings.navWork
                                     NavItem.Customer -> strings.navCustomer
-                                    NavItem.Driver -> strings.navDriver
                                     NavItem.Ledger -> strings.navLedgerShort
-                                    NavItem.Report -> strings.navReports
+                                    else -> ""
                                 }
                                 NavigationBarItem(
                                     icon = {
@@ -250,7 +265,7 @@ fun MainErpApp(
                                     label = {
                                         Text(
                                             text = title,
-                                            fontSize = 10.sp,
+                                            fontSize = 10.5.sp,
                                             fontWeight = if (currentTab == item) FontWeight.Bold else FontWeight.Medium,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
@@ -265,10 +280,49 @@ fun MainErpApp(
                         }
                     }
                 ) { padding ->
+                    // Horizontal swipe navigation across screens (e.g. Vehicle -> Work -> Vehicle)
+                    val swipeScreens = listOf(
+                        NavItem.Dashboard,
+                        NavItem.Work,
+                        NavItem.Customer,
+                        NavItem.Ledger,
+                        NavItem.Vehicle,
+                        NavItem.Driver
+                    )
+                    var dragAccumulator by remember { mutableFloatStateOf(0f) }
+
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding)
+                            .pointerInput(currentTab) {
+                                detectHorizontalDragGestures(
+                                    onDragEnd = {
+                                        if (dragAccumulator > 120f) {
+                                            // Slided screen to the right -> switch to adjacent screen
+                                            val idx = swipeScreens.indexOf(currentTab)
+                                            if (idx > 0) {
+                                                currentTab = swipeScreens[idx - 1]
+                                            } else if (idx == 0) {
+                                                currentTab = swipeScreens.last()
+                                            }
+                                        } else if (dragAccumulator < -120f) {
+                                            // Slided screen to the left -> switch to adjacent screen
+                                            val idx = swipeScreens.indexOf(currentTab)
+                                            if (idx >= 0 && idx < swipeScreens.size - 1) {
+                                                currentTab = swipeScreens[idx + 1]
+                                            } else if (idx == swipeScreens.size - 1) {
+                                                currentTab = swipeScreens.first()
+                                            }
+                                        }
+                                        dragAccumulator = 0f
+                                    },
+                                    onDragCancel = { dragAccumulator = 0f },
+                                    onHorizontalDrag = { _, dragAmount ->
+                                        dragAccumulator += dragAmount
+                                    }
+                                )
+                            }
                     ) {
                         when (currentTab) {
                             NavItem.Dashboard -> DashboardScreen(
@@ -326,6 +380,100 @@ fun MainErpApp(
             }
         }
 
+        // ==================== INSTAGRAM-STYLE 3-LINES HAMBURGER MENU ====================
+        if (showHamburgerMenu) {
+            ModalBottomSheet(
+                onDismissRequest = { showHamburgerMenu = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        "Balaji Earthmovers Menu",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+
+                    // Vehicles option
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null) },
+                        label = { Text("Vehicles & Machinery (गाड्या)") },
+                        selected = currentTab == NavItem.Vehicle,
+                        onClick = {
+                            currentTab = NavItem.Vehicle
+                            showHamburgerMenu = false
+                        }
+                    )
+
+                    // Drivers option
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        label = { Text("Drivers & Passbook (चालक व पगार)") },
+                        selected = currentTab == NavItem.Driver,
+                        onClick = {
+                            currentTab = NavItem.Driver
+                            showHamburgerMenu = false
+                        }
+                    )
+
+                    // Reports option
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Assessment, contentDescription = null) },
+                        label = { Text("Business Reports & Statements (अहवाल)") },
+                        selected = currentTab == NavItem.Report,
+                        onClick = {
+                            currentTab = NavItem.Report
+                            showHamburgerMenu = false
+                        }
+                    )
+
+                    // Data & Backup
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Storage, contentDescription = null) },
+                        label = { Text("Data, Storage & Backup (बॅकअप)") },
+                        selected = false,
+                        onClick = {
+                            showHamburgerMenu = false
+                            isViewingSettings = true
+                        }
+                    )
+
+                    // App Settings
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                        label = { Text("App Settings & Profile (सेटिंग्ज व प्रोफाइल)") },
+                        selected = false,
+                        onClick = {
+                            showHamburgerMenu = false
+                            isViewingSettings = true
+                        }
+                    )
+
+                    // Lock App
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                        label = { Text("Lock App (ॲप लॉक करा)") },
+                        selected = false,
+                        onClick = {
+                            showHamburgerMenu = false
+                            isAppUnlocked = false
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+        }
+
         if (showWorkEntryDialog) {
             WorkEntryDialog(
                 viewModel = viewModel,
@@ -345,14 +493,18 @@ fun MainErpApp(
 /**
  * Compact, unified top bar stuck to the top of the screen:
  * - Logo (38dp)
- * - "Balaji Earthmovers Kodoli" + "Owner: Ajaysinh Jaysing Patil"
- * - Settings icon
- * Appears uniformly across Work, Driver, Vehicle, Customer, Dashboard & Report.
+ * - Dynamic Business Name + Owner Name
+ * - Settings icon + Instagram-style 3 horizontal lines (Menu)
  */
 @Composable
 fun BalajiTopBar(
-    onOpenSettings: () -> Unit
+    viewModel: BalajiViewModel,
+    onOpenSettings: () -> Unit,
+    onOpenMenu: () -> Unit
 ) {
+    val businessName by viewModel.businessName.collectAsState()
+    val ownerName by viewModel.ownerName.collectAsState()
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
@@ -381,7 +533,7 @@ fun BalajiTopBar(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(verticalArrangement = Arrangement.Center) {
                     Text(
-                        text = "Balaji Earthmovers Kodoli",
+                        text = businessName,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
                         fontSize = 14.5.sp,
@@ -389,7 +541,7 @@ fun BalajiTopBar(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Owner: Ajaysinh Jaysing Patil",
+                        text = "Owner: $ownerName",
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Medium,
@@ -398,16 +550,29 @@ fun BalajiTopBar(
                     )
                 }
             }
-            IconButton(
-                onClick = onOpenSettings,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp)
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onOpenMenu,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Menu",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
     }

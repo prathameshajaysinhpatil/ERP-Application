@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.balaji_earthmovers.data.local.dao.CustomerDao
 import com.example.balaji_earthmovers.data.local.dao.DriverDao
@@ -39,7 +40,7 @@ import java.io.File
         ExpenseEntity::class,
         IncomeEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -54,6 +55,23 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "balaji_earthmovers.db"
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE customers ADD COLUMN imageUri TEXT")
+                } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE vehicles ADD COLUMN imageUri TEXT")
+                } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE drivers ADD COLUMN imageUri TEXT")
+                } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE works ADD COLUMN finalSettledAmount REAL")
+                } catch (_: Exception) {}
+            }
+        }
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -74,6 +92,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
+                .addMigrations(MIGRATION_1_2)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

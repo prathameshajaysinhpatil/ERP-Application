@@ -118,6 +118,7 @@ fun SettingsScreen(
                 title = {
                     Text(
                         text = when (activeFolder) {
+                            "profile" -> "Business Profile"
                             "themes" -> "Themes & Languages"
                             "data" -> "Data & Storage"
                             "security" -> "Security & PINs"
@@ -220,9 +221,18 @@ fun SettingsScreen(
                     ) {
                         Column {
                             SettingsDirectoryItem(
+                                icon = Icons.Default.Edit,
+                                title = "Business Profile (कंपनी व मालक माहिती)",
+                                subtitle = "Change business name, owner name & contact phone",
+                                onClick = { activeFolder = "profile" }
+                            )
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+
+                            SettingsDirectoryItem(
                                 icon = Icons.Default.Palette,
-                                title = "Themes & Languages",
-                                subtitle = "Theme mode (Light / Dark / System) & App language",
+                                title = "Themes, Icons & Languages",
+                                subtitle = "Theme mode, App launcher icon & Language",
                                 onClick = { activeFolder = "themes" }
                             )
 
@@ -339,6 +349,126 @@ fun SettingsScreen(
                             }
                         }
                     }
+
+                    // App Launcher Icon Style Selection
+                    val currentAppIcon by viewModel.appIconStyle.collectAsState()
+                    Text(
+                        "App Icon Theme / ॲप आयकॉन बदला",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(1.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                "DEFAULT" to "Classic JCB Gold (मूळ पिवळा आयकॉन)",
+                                "DARK" to "Heavy Earth Black (काळा आयकॉन)",
+                                "BLUE" to "Royal Steel Blue (निळा आयकॉन)"
+                            ).forEach { (styleKey, styleLabel) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.updateAppIconStyle(styleKey)
+                                            statusMessage = "App icon preference updated to $styleLabel"
+                                        }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = currentAppIcon == styleKey,
+                                        onClick = {
+                                            viewModel.updateAppIconStyle(styleKey)
+                                            statusMessage = "App icon preference updated to $styleLabel"
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(styleLabel)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "profile" -> {
+                    // Option: Edit Business Profile Information
+                    val currentBusName by viewModel.businessName.collectAsState()
+                    val currentOwnerName by viewModel.ownerName.collectAsState()
+                    val currentPhone by viewModel.businessPhone.collectAsState()
+
+                    var editBusName by remember(currentBusName) { mutableStateOf(currentBusName) }
+                    var editOwnerName by remember(currentOwnerName) { mutableStateOf(currentOwnerName) }
+                    var editPhone by remember(currentPhone) { mutableStateOf(currentPhone) }
+
+                    Text(
+                        "Edit Business Profile / प्रोफाइल बदला",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(1.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = editBusName,
+                                onValueChange = { editBusName = it },
+                                label = { Text("Business / Firm Name") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            OutlinedTextField(
+                                value = editOwnerName,
+                                onValueChange = { editOwnerName = it },
+                                label = { Text("Owner Name") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            OutlinedTextField(
+                                value = editPhone,
+                                onValueChange = { editPhone = it },
+                                label = { Text("Contact Phone Number") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Button(
+                                onClick = {
+                                    viewModel.updateBusinessProfile(
+                                        name = editBusName.trim(),
+                                        owner = editOwnerName.trim(),
+                                        phone = editPhone.trim(),
+                                        logoUri = null
+                                    )
+                                    statusMessage = "Business profile information updated successfully!"
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Save Profile Changes")
+                            }
+                        }
+                    }
                 }
 
                 "data" -> {
@@ -393,7 +523,7 @@ fun SettingsScreen(
                             // Restore Backup from File Picker
                             OutlinedButton(
                                 onClick = {
-                                    importLauncher.launch(arrayOf("application/json"))
+                                    importLauncher.launch(arrayOf("*/*", "application/json", "application/octet-stream", "text/plain"))
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp)

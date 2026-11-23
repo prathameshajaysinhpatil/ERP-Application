@@ -33,6 +33,7 @@ data class VehicleEntity(
     val soldDate: Long? = null,
     val currentDriverId: String? = null,
     val fuelExpenseTotal: Double = 0.0,
+    val imageUri: String? = null,
     val deletedAt: Long? = null
 ) {
     /**

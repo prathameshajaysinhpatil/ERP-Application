@@ -21,6 +21,7 @@ data class CustomerEntity(
     val gstin: String = "",
     val totalBilled: Double = 0.0,
     val totalPaid: Double = 0.0,
+    val imageUri: String? = null,
     val deletedAt: Long? = null
 ) {
     /**

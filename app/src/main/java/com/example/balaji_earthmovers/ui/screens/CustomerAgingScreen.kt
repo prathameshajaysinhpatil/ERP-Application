@@ -33,6 +33,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -330,43 +331,59 @@ fun SimpleCustomerReceivableCard(
                 )
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (customer.mobileNumber.isNotBlank()) {
-                        IconButton(
-                            onClick = { CustomerShareUtils.makeCall(context, customer.mobileNumber) },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(Icons.Default.Call, contentDescription = "Call", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                        }
-                        IconButton(
-                            onClick = {
-                                CustomerShareUtils.openWhatsApp(
-                                    context = context,
-                                    mobileNumber = customer.mobileNumber,
-                                    customerName = customer.name,
-                                    totalAmount = customer.totalBilled,
-                                    pendingAmount = customer.pendingBalance
+                        var showContactMenu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(
+                                onClick = { showContactMenu = true },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.Call, contentDescription = "Contact Customer", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            }
+                            DropdownMenu(
+                                expanded = showContactMenu,
+                                onDismissRequest = { showContactMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Call (${customer.mobileNumber})") },
+                                    leadingIcon = { Icon(Icons.Default.Call, contentDescription = null, tint = ProfitGreen) },
+                                    onClick = {
+                                        showContactMenu = false
+                                        CustomerShareUtils.makeCall(context, customer.mobileNumber)
+                                    }
                                 )
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(Icons.Default.ChatBubble, contentDescription = "WhatsApp", tint = ProfitGreen, modifier = Modifier.size(16.dp))
-                        }
-                        IconButton(
-                            onClick = {
-                                CustomerShareUtils.openSms(
-                                    context = context,
-                                    mobileNumber = customer.mobileNumber,
-                                    customerName = customer.name,
-                                    totalAmount = customer.totalBilled,
-                                    pendingAmount = customer.pendingBalance
+                                DropdownMenuItem(
+                                    text = { Text("WhatsApp Bill") },
+                                    leadingIcon = { Icon(Icons.Default.ChatBubble, contentDescription = null, tint = ProfitGreen) },
+                                    onClick = {
+                                        showContactMenu = false
+                                        CustomerShareUtils.openWhatsApp(
+                                            context = context,
+                                            mobileNumber = customer.mobileNumber,
+                                            customerName = customer.name,
+                                            totalAmount = customer.totalBilled,
+                                            pendingAmount = customer.pendingBalance
+                                        )
+                                    }
                                 )
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(Icons.Default.Sms, contentDescription = "SMS", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                DropdownMenuItem(
+                                    text = { Text("SMS Bill") },
+                                    leadingIcon = { Icon(Icons.Default.Sms, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                                    onClick = {
+                                        showContactMenu = false
+                                        CustomerShareUtils.openSms(
+                                            context = context,
+                                            mobileNumber = customer.mobileNumber,
+                                            customerName = customer.name,
+                                            totalAmount = customer.totalBilled,
+                                            pendingAmount = customer.pendingBalance
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }
 

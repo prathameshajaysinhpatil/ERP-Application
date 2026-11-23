@@ -88,18 +88,28 @@ fun ReportsScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val allWorks by viewModel.allWorks.collectAsState()
+    val allVehicles by viewModel.allVehicles.collectAsState()
+    val allCustomers by viewModel.allCustomers.collectAsState()
+    val allDrivers by viewModel.allDrivers.collectAsState()
     val totalRevenue by viewModel.totalCollectedIncome.collectAsState()
     val totalExpenses by viewModel.totalExpenses.collectAsState()
     val netProfit by viewModel.netProfit.collectAsState()
     val totalBilled by viewModel.totalWorkBilled.collectAsState()
 
     var selectedPeriod by remember { mutableStateOf(ReportPeriod.ALL) }
+    var selectedVehicleId by remember { mutableStateOf<String?>(null) }
+    var selectedCustomerId by remember { mutableStateOf<String?>(null) }
+    var selectedDriverId by remember { mutableStateOf<String?>(null) }
+
+    var vehicleMenuExpanded by remember { mutableStateOf(false) }
+    var customerMenuExpanded by remember { mutableStateOf(false) }
+    var driverMenuExpanded by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
 
-    // Filter works based on selected period
-    val filteredWorks = remember(allWorks, selectedPeriod) {
+    // Filter works based on selected period and entity filters
+    val filteredWorks = remember(allWorks, selectedPeriod, selectedVehicleId, selectedCustomerId, selectedDriverId) {
         val cal = Calendar.getInstance()
-        when (selectedPeriod) {
+        val periodList = when (selectedPeriod) {
             ReportPeriod.ALL -> allWorks
             ReportPeriod.TODAY -> {
                 cal.set(Calendar.HOUR_OF_DAY, 0)
@@ -124,6 +134,11 @@ fun ReportsScreen(
                 val startOfMonth = cal.timeInMillis
                 allWorks.filter { it.work.date >= startOfMonth }
             }
+        }
+        periodList.filter {
+            (selectedVehicleId == null || it.work.vehicleId == selectedVehicleId) &&
+            (selectedCustomerId == null || it.work.customerId == selectedCustomerId) &&
+            (selectedDriverId == null || it.work.driverId == selectedDriverId)
         }
     }
 
@@ -157,6 +172,108 @@ fun ReportsScreen(
                             selectedLabelColor = Color.White
                         )
                     )
+                }
+            }
+
+            // Entity Filters: Vehicle, Customer, Driver
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Vehicle filter chip
+                Box {
+                    val selVeh = allVehicles.find { it.id == selectedVehicleId }
+                    FilterChip(
+                        selected = selectedVehicleId != null,
+                        onClick = { vehicleMenuExpanded = true },
+                        label = { Text(selVeh?.let { "${it.vehicleName} (${it.vehicleNumber})" } ?: "All Vehicles", fontSize = 11.sp) }
+                    )
+                    DropdownMenu(
+                        expanded = vehicleMenuExpanded,
+                        onDismissRequest = { vehicleMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("All Vehicles") },
+                            onClick = {
+                                selectedVehicleId = null
+                                vehicleMenuExpanded = false
+                            }
+                        )
+                        allVehicles.forEach { v ->
+                            DropdownMenuItem(
+                                text = { Text("${v.vehicleName} (${v.vehicleNumber})") },
+                                onClick = {
+                                    selectedVehicleId = v.id
+                                    vehicleMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Customer filter chip
+                Box {
+                    val selCust = allCustomers.find { it.id == selectedCustomerId }
+                    FilterChip(
+                        selected = selectedCustomerId != null,
+                        onClick = { customerMenuExpanded = true },
+                        label = { Text(selCust?.name ?: "All Customers", fontSize = 11.sp) }
+                    )
+                    DropdownMenu(
+                        expanded = customerMenuExpanded,
+                        onDismissRequest = { customerMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("All Customers") },
+                            onClick = {
+                                selectedCustomerId = null
+                                customerMenuExpanded = false
+                            }
+                        )
+                        allCustomers.forEach { c ->
+                            DropdownMenuItem(
+                                text = { Text(c.name) },
+                                onClick = {
+                                    selectedCustomerId = c.id
+                                    customerMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Driver filter chip
+                Box {
+                    val selDriv = allDrivers.find { it.id == selectedDriverId }
+                    FilterChip(
+                        selected = selectedDriverId != null,
+                        onClick = { driverMenuExpanded = true },
+                        label = { Text(selDriv?.driverName ?: "All Drivers", fontSize = 11.sp) }
+                    )
+                    DropdownMenu(
+                        expanded = driverMenuExpanded,
+                        onDismissRequest = { driverMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("All Drivers") },
+                            onClick = {
+                                selectedDriverId = null
+                                driverMenuExpanded = false
+                            }
+                        )
+                        allDrivers.forEach { d ->
+                            DropdownMenuItem(
+                                text = { Text(d.driverName) },
+                                onClick = {
+                                    selectedDriverId = d.id
+                                    driverMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
 

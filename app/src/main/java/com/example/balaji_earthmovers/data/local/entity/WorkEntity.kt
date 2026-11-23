@@ -48,6 +48,7 @@ data class WorkEntity(
     val totalTimeHours: Double,
     val hourlyRate: Double,
     val totalWorkAmount: Double,
+    val finalSettledAmount: Double? = null,
     val location: String = "",
     val deletedAt: Long? = null
 )

@@ -24,18 +24,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CurrencyRupee
 import androidx.compose.material.icons.filled.DriveEta
 import androidx.compose.material.icons.filled.MoneyOff
 import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -62,12 +68,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.balaji_earthmovers.R
+import com.example.balaji_earthmovers.data.local.entity.CustomerEntity
 import com.example.balaji_earthmovers.data.local.entity.VehicleEntity
 import com.example.balaji_earthmovers.data.local.entity.WorkWithDetails
 import com.example.balaji_earthmovers.ui.theme.AmberPrimary
 import com.example.balaji_earthmovers.ui.theme.ExpenseRed
 import com.example.balaji_earthmovers.ui.theme.InfoBlue
 import com.example.balaji_earthmovers.ui.theme.ProfitGreen
+import com.example.balaji_earthmovers.ui.util.CustomerShareUtils
 import com.example.balaji_earthmovers.ui.util.LocalStrings
 import com.example.balaji_earthmovers.ui.viewmodel.BalajiViewModel
 import java.text.SimpleDateFormat
@@ -95,6 +103,10 @@ fun DashboardScreen(
     val vehicles by viewModel.allVehicles.collectAsState()
     val vehiclesDueForService by viewModel.vehiclesDueForService.collectAsState()
     val recentWorks by viewModel.allWorks.collectAsState()
+    val allCustomers by viewModel.allCustomers.collectAsState()
+    val highPendingCustomers = remember(allCustomers) {
+        allCustomers.filter { it.pendingBalance > 5000.0 }.sortedByDescending { it.pendingBalance }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -321,6 +333,154 @@ fun DashboardScreen(
             } else {
                 items(recentWorks.take(5), key = { it.work.id }) { workWithDetails ->
                     RecentWorkItemCard(workWithDetails)
+                }
+            }
+
+            // High Outstanding Receivables Alert (> ₹5,000)
+            if (highPendingCustomers.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = ExpenseRed, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Pending to Collect > ₹5,000",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = ExpenseRed
+                            )
+                        }
+                        Text(
+                            strings.viewAll,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { onNavigateToAging() }
+                        )
+                    }
+                }
+
+                items(highPendingCustomers.take(5), key = { it.id }) { cust ->
+                    HighPendingCustomerCard(
+                        customer = cust,
+                        onOpenAging = onNavigateToAging
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HighPendingCustomerCard(
+    customer: CustomerEntity,
+    onOpenAging: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var showContactMenu by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenAging() },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(1.5.dp),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = customer.name,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = customer.mobileNumber,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "Pending",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ExpenseRed
+                    )
+                    Text(
+                        text = "₹${"%.0f".format(customer.pendingBalance)}",
+                        fontWeight = FontWeight.Bold,
+                        color = ExpenseRed,
+                        fontSize = 15.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Box {
+                    IconButton(
+                        onClick = { showContactMenu = true },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "Contact Options",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showContactMenu,
+                        onDismissRequest = { showContactMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Call (${customer.mobileNumber})") },
+                            leadingIcon = { Icon(Icons.Default.Call, contentDescription = null, tint = ProfitGreen) },
+                            onClick = {
+                                showContactMenu = false
+                                CustomerShareUtils.makeCall(context, customer.mobileNumber)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("WhatsApp Bill") },
+                            leadingIcon = { Icon(Icons.Default.ChatBubble, contentDescription = null, tint = ProfitGreen) },
+                            onClick = {
+                                showContactMenu = false
+                                CustomerShareUtils.openWhatsApp(
+                                    context = context,
+                                    mobileNumber = customer.mobileNumber,
+                                    customerName = customer.name,
+                                    totalAmount = customer.totalBilled,
+                                    pendingAmount = customer.pendingBalance
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("SMS Bill") },
+                            leadingIcon = { Icon(Icons.Default.Sms, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            onClick = {
+                                showContactMenu = false
+                                CustomerShareUtils.openSms(
+                                    context = context,
+                                    mobileNumber = customer.mobileNumber,
+                                    customerName = customer.name,
+                                    totalAmount = customer.totalBilled,
+                                    pendingAmount = customer.pendingBalance
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }

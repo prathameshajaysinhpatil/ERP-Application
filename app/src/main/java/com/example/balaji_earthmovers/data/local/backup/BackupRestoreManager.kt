@@ -100,6 +100,7 @@ object BackupRestoreManager {
             val db = AppDatabase.getInstance(context)
             val payload = ErpBackupPayload(
                 drivers = db.driverDao().getAllDrivers().first(),
+                driverTransactions = db.driverDao().getAllDriverTransactions().first(),
                 vehicles = db.vehicleDao().getAllVehicles().first(),
                 works = db.workDao().getAllWorks().first(),
                 customers = db.customerDao().getAllCustomers().first(),
@@ -159,6 +160,7 @@ object BackupRestoreManager {
             var totalRestored = 0
             payload.vehicles.forEach { db.vehicleDao().insertVehicle(it); totalRestored++ }
             payload.drivers.forEach { db.driverDao().insertDriver(it); totalRestored++ }
+            payload.driverTransactions.forEach { db.driverDao().insertTransaction(it); totalRestored++ }
             payload.customers.forEach { db.customerDao().insertCustomer(it); totalRestored++ }
             payload.works.forEach { db.workDao().insertWork(it); totalRestored++ }
             payload.expenses.forEach { db.expenseDao().insertExpense(it); totalRestored++ }
@@ -166,8 +168,19 @@ object BackupRestoreManager {
 
             Result.success(totalRestored)
         } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
+            // Attempt binary DB restore if file was SQLite .db
+            try {
+                val currentDb = context.getDatabasePath(AppDatabase.DATABASE_NAME)
+                currentDb.parentFile?.mkdirs()
+                context.contentResolver.openInputStream(backupUri)?.use { input ->
+                    FileOutputStream(currentDb).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                Result.success(1)
+            } catch (ex: Exception) {
+                Result.failure(e)
+            }
         }
     }
 

@@ -32,6 +32,9 @@ interface DriverDao {
     @Query("SELECT * FROM driver_transactions WHERE driverId = :driverId AND deletedAt IS NULL ORDER BY date DESC")
     fun getTransactionsForDriver(driverId: String): Flow<List<DriverTransactionEntity>>
 
+    @Query("SELECT * FROM driver_transactions WHERE deletedAt IS NULL ORDER BY date DESC")
+    fun getAllDriverTransactions(): Flow<List<DriverTransactionEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDriver(driver: DriverEntity)
 

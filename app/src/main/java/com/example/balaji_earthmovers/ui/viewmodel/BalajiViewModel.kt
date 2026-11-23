@@ -59,6 +59,7 @@ data class WorkFormState(
     val totalHoursError: String? = null,
     val hourlyRate: String = "",
     val hourlyRateError: String? = null,
+    val finalSettledAmount: String = "",
     val initialPaidAmount: String = "0",
     val initialPaidError: String? = null,
     val paymentMode: PaymentMode = PaymentMode.CASH,
@@ -72,6 +73,12 @@ data class WorkFormState(
             val h = totalHours.toDoubleOrNull() ?: 0.0
             val r = hourlyRate.toDoubleOrNull() ?: 0.0
             h * r
+        }
+
+    val effectiveBilledAmount: Double
+        get() {
+            val finalAmt = finalSettledAmount.toDoubleOrNull()
+            return if (finalAmt != null && finalAmt > 0.0) finalAmt else totalAmount
         }
 
     val isValid: Boolean
@@ -133,7 +140,8 @@ data class DriverFormState(
     val aadhaarError: String? = null,
     val monthlySalary: String = "",
     val salaryError: String? = null,
-    val assignedVehicleId: String? = null
+    val assignedVehicleId: String? = null,
+    val imageUri: String? = null
 ) {
     val isValid: Boolean
         get() = name.isNotBlank() &&
@@ -150,7 +158,8 @@ data class CustomerFormState(
     val mobileError: String? = null,
     val address: String = "",
     val gstin: String = "",
-    val gstinError: String? = null
+    val gstinError: String? = null,
+    val imageUri: String? = null
 ) {
     val isValid: Boolean
         get() = name.isNotBlank() &&
@@ -166,7 +175,8 @@ data class VehicleFormState(
     val numberError: String? = null,
     val model: String = "",
     val initialHours: String = "0.0",
-    val hoursError: String? = null
+    val hoursError: String? = null,
+    val imageUri: String? = null
 ) {
     val isValid: Boolean
         get() = name.isNotBlank() && vehicleNumber.isNotBlank() &&
@@ -194,11 +204,19 @@ class BalajiViewModel(application: Application) : AndroidViewModel(application) 
     val language: StateFlow<AppLanguage> = prefsManager.language
     val appPin: StateFlow<String> = prefsManager.appPin
     val adminPin: StateFlow<String> = prefsManager.adminPin
+    val businessName: StateFlow<String> = prefsManager.businessName
+    val ownerName: StateFlow<String> = prefsManager.ownerName
+    val businessPhone: StateFlow<String> = prefsManager.businessPhone
+    val businessLogoUri: StateFlow<String?> = prefsManager.businessLogoUri
+    val appIconStyle: StateFlow<String> = prefsManager.appIconStyle
 
     fun setThemeMode(mode: AppThemeMode) = prefsManager.setThemeMode(mode)
     fun setAppPin(pin: String) = prefsManager.setAppPin(pin)
     fun setAdminPin(pin: String) = prefsManager.setAdminPin(pin)
     fun setLanguage(lang: AppLanguage) = prefsManager.setLanguage(lang)
+    fun updateBusinessProfile(name: String, owner: String, phone: String, logoUri: String?) =
+        prefsManager.setBusinessProfile(name, owner, phone, logoUri)
+    fun updateAppIconStyle(style: String) = prefsManager.setAppIconStyle(style)
     fun verifyAppPin(pin: String): Boolean = prefsManager.verifyAppPin(pin)
     fun verifyAdminPin(pin: String): Boolean = prefsManager.verifyAdminPin(pin)
 
@@ -378,11 +396,7 @@ class BalajiViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val hours = state.totalHours.toDoubleOrNull() ?: 0.0
-                val totalAmount = if (state.isFixedAmount) {
-                    state.fixedAmount.toDouble()
-                } else {
-                    hours * (state.hourlyRate.toDoubleOrNull() ?: 0.0)
-                }
+                val totalAmount = state.effectiveBilledAmount
                 val rate = if (state.isFixedAmount) {
                     if (hours > 0) totalAmount / hours else 0.0
                 } else {
@@ -402,6 +416,7 @@ class BalajiViewModel(application: Application) : AndroidViewModel(application) 
                     totalTimeHours = hours,
                     hourlyRate = rate,
                     totalWorkAmount = totalAmount,
+                    finalSettledAmount = state.finalSettledAmount.toDoubleOrNull(),
                     location = state.location.trim()
                 )
 
@@ -498,7 +513,8 @@ class BalajiViewModel(application: Application) : AndroidViewModel(application) 
                     adharNumber = state.aadhaar.trim(),
                     monthlySalary = state.monthlySalary.toDoubleOrNull() ?: 0.0,
                     joiningDate = System.currentTimeMillis(),
-                    assignedVehicleId = state.assignedVehicleId
+                    assignedVehicleId = state.assignedVehicleId,
+                    imageUri = state.imageUri
                 )
                 repository.insertDriver(driver)
                 _driverFormState.value = DriverFormState()
@@ -523,7 +539,8 @@ class BalajiViewModel(application: Application) : AndroidViewModel(application) 
                     name = state.name.trim(),
                     mobileNumber = state.mobile.trim(),
                     address = state.address.trim(),
-                    gstin = state.gstin.trim().uppercase()
+                    gstin = state.gstin.trim().uppercase(),
+                    imageUri = state.imageUri
                 )
                 repository.insertCustomer(customer)
                 _customerFormState.value = CustomerFormState()
@@ -553,7 +570,8 @@ class BalajiViewModel(application: Application) : AndroidViewModel(application) 
                         model = state.model.trim(),
                         workedHours = hours,
                         lastServiceHours = hours,
-                        purchaseDate = System.currentTimeMillis()
+                        purchaseDate = System.currentTimeMillis(),
+                        imageUri = state.imageUri
                     )
                 }
                 repository.insertVehicle(toInsert)
