@@ -1,8 +1,14 @@
 package com.example.balaji_earthmovers.ui.screens
 
+import android.app.Activity
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +26,7 @@ import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DriveEta
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
@@ -32,6 +39,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -39,6 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,6 +83,107 @@ fun WorkEntryDialog(
     var paymentModeExpanded by remember { mutableStateOf(false) }
 
     var showOcrScanner by remember { mutableStateOf(false) }
+
+    var currentSpeechTarget by remember { mutableStateOf<String?>(null) }
+    val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.trim() ?: ""
+            if (spoken.isNotBlank()) {
+                when (currentSpeechTarget) {
+                    "workName" -> viewModel.updateWorkForm { s -> s.copy(workName = spoken) }
+                    "hours" -> {
+                        val digits = spoken.filter { it.isDigit() || it == '.' }
+                        viewModel.updateWorkForm { s -> s.copy(totalHours = digits) }
+                    }
+                    "rate" -> {
+                        val digits = spoken.filter { it.isDigit() || it == '.' }
+                        viewModel.updateWorkForm { s -> s.copy(hourlyRate = digits) }
+                    }
+                    "fixedAmount" -> {
+                        val digits = spoken.filter { it.isDigit() || it == '.' }
+                        viewModel.updateWorkForm { s -> s.copy(fixedAmount = digits) }
+                    }
+                    "settledAmount" -> {
+                        val digits = spoken.filter { it.isDigit() || it == '.' }
+                        viewModel.updateWorkForm { s -> s.copy(finalSettledAmount = digits) }
+                    }
+                    "paidAmount" -> {
+                        val digits = spoken.filter { it.isDigit() || it == '.' }
+                        viewModel.updateWorkForm { s -> s.copy(initialPaidAmount = digits) }
+                    }
+                    "auto_workName" -> {
+                        viewModel.updateWorkForm { s -> s.copy(workName = spoken) }
+                        currentSpeechTarget = if (formState.isFixedAmount) "auto_fixedAmount" else "auto_hours"
+                    }
+                    "auto_hours" -> {
+                        val digits = spoken.filter { it.isDigit() || it == '.' }
+                        viewModel.updateWorkForm { s -> s.copy(totalHours = digits) }
+                        currentSpeechTarget = "auto_rate"
+                    }
+                    "auto_rate" -> {
+                        val digits = spoken.filter { it.isDigit() || it == '.' }
+                        viewModel.updateWorkForm { s -> s.copy(hourlyRate = digits) }
+                        currentSpeechTarget = "auto_paidAmount"
+                    }
+                    "auto_fixedAmount" -> {
+                        val digits = spoken.filter { it.isDigit() || it == '.' }
+                        viewModel.updateWorkForm { s -> s.copy(fixedAmount = digits) }
+                        currentSpeechTarget = "auto_paidAmount"
+                    }
+                    "auto_paidAmount" -> {
+                        val digits = spoken.filter { it.isDigit() || it == '.' }
+                        viewModel.updateWorkForm { s -> s.copy(initialPaidAmount = digits) }
+                        currentSpeechTarget = null
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(currentSpeechTarget) {
+        when (currentSpeechTarget) {
+            "auto_workName" -> {
+                try {
+                    speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, "पायरी १: कामाचे नाव सांगा (Step 1: Speak Work Title / Site)")
+                    })
+                } catch (_: Exception) { currentSpeechTarget = null }
+            }
+            "auto_hours" -> {
+                try {
+                    speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, "पायरी २: कामाचे तास सांगा (Step 2: Speak Hours Worked)")
+                    })
+                } catch (_: Exception) { currentSpeechTarget = null }
+            }
+            "auto_rate" -> {
+                try {
+                    speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, "पायरी ३: ताशी दर सांगा (Step 3: Speak Hourly Rate)")
+                    })
+                } catch (_: Exception) { currentSpeechTarget = null }
+            }
+            "auto_fixedAmount" -> {
+                try {
+                    speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, "पायरी २: ठरलेली रक्कम सांगा (Step 2: Speak Fixed Work Amount)")
+                    })
+                } catch (_: Exception) { currentSpeechTarget = null }
+            }
+            "auto_paidAmount" -> {
+                try {
+                    speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, "पायरी ४: जमा झालेली रक्कम सांगा (Step 4: Speak Amount Paid)")
+                    })
+                } catch (_: Exception) { currentSpeechTarget = null }
+            }
+        }
+    }
 
     if (showOcrScanner) {
         DocumentScanDialog(
@@ -127,14 +237,26 @@ fun WorkEntryDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Add Work Entry", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                OutlinedButton(
-                    onClick = { showOcrScanner = true },
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Scan Slip", fontSize = 11.sp)
+                Text("Add Work Entry", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(
+                        onClick = { currentSpeechTarget = "auto_workName" },
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Mic, contentDescription = "Voice Fill", modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Voice", fontSize = 11.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { showOcrScanner = true },
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Scan", fontSize = 11.sp)
+                    }
                 }
             }
         },
@@ -156,6 +278,19 @@ fun WorkEntryDialog(
                     value = formState.workName,
                     onValueChange = { viewModel.updateWorkForm { s -> s.copy(workName = it) } },
                     label = { Text("Work Title / Site Name *") },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            currentSpeechTarget = "workName"
+                            try {
+                                speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "कामाचे नाव सांगा (Speak Work Title)")
+                                })
+                            } catch (_: Exception) {}
+                        }) {
+                            Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    },
                     isError = formState.workNameError != null,
                     supportingText = formState.workNameError?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
@@ -295,6 +430,19 @@ fun WorkEntryDialog(
                         value = formState.fixedAmount,
                         onValueChange = { viewModel.updateWorkForm { s -> s.copy(fixedAmount = it) } },
                         label = { Text("Fixed Work Amount (₹) *") },
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                currentSpeechTarget = "fixedAmount"
+                                try {
+                                    speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                        putExtra(RecognizerIntent.EXTRA_PROMPT, "रक्कम सांगा (Speak Fixed Amount)")
+                                    })
+                                } catch (_: Exception) {}
+                            }) {
+                                Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         isError = formState.fixedAmountError != null,
                         supportingText = formState.fixedAmountError?.let { { Text(it) } },
@@ -319,6 +467,19 @@ fun WorkEntryDialog(
                             value = formState.totalHours,
                             onValueChange = { viewModel.updateWorkForm { s -> s.copy(totalHours = it) } },
                             label = { Text("Hours *") },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    currentSpeechTarget = "hours"
+                                    try {
+                                        speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                            putExtra(RecognizerIntent.EXTRA_PROMPT, "तास सांगा (Speak Hours)")
+                                        })
+                                    } catch (_: Exception) {}
+                                }) {
+                                    Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = MaterialTheme.colorScheme.primary)
+                                }
+                            },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             isError = formState.totalHoursError != null,
                             supportingText = formState.totalHoursError?.let { { Text(it) } },
@@ -329,6 +490,19 @@ fun WorkEntryDialog(
                             value = formState.hourlyRate,
                             onValueChange = { viewModel.updateWorkForm { s -> s.copy(hourlyRate = it) } },
                             label = { Text("Rate (₹/hr) *") },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    currentSpeechTarget = "rate"
+                                    try {
+                                        speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                            putExtra(RecognizerIntent.EXTRA_PROMPT, "दर सांगा (Speak Hourly Rate)")
+                                        })
+                                    } catch (_: Exception) {}
+                                }) {
+                                    Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = MaterialTheme.colorScheme.primary)
+                                }
+                            },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             isError = formState.hourlyRateError != null,
                             supportingText = formState.hourlyRateError?.let { { Text(it) } },
@@ -363,6 +537,19 @@ fun WorkEntryDialog(
                             onValueChange = { viewModel.updateWorkForm { s -> s.copy(finalSettledAmount = it) } },
                             label = { Text("Final Settled Amount (₹) / ठरलेली अंतिम रक्कम") },
                             placeholder = { Text("Calculated: ₹${"%.0f".format(formState.totalAmount)} (Enter if bargained)") },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    currentSpeechTarget = "settledAmount"
+                                    try {
+                                        speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                            putExtra(RecognizerIntent.EXTRA_PROMPT, "अंतिम रक्कम सांगा (Speak Settled Amount)")
+                                        })
+                                    } catch (_: Exception) {}
+                                }) {
+                                    Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = MaterialTheme.colorScheme.primary)
+                                }
+                            },
                             supportingText = {
                                 Text(
                                     if (formState.finalSettledAmount.isNotBlank())
@@ -384,6 +571,19 @@ fun WorkEntryDialog(
                                 value = formState.initialPaidAmount,
                                 onValueChange = { viewModel.updateWorkForm { s -> s.copy(initialPaidAmount = it) } },
                                 label = { Text("Amount Paid (₹) *") },
+                                trailingIcon = {
+                                    IconButton(onClick = {
+                                        currentSpeechTarget = "paidAmount"
+                                        try {
+                                            speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                                putExtra(RecognizerIntent.EXTRA_PROMPT, "जमा रक्कम सांगा (Speak Paid Amount)")
+                                            })
+                                        } catch (_: Exception) {}
+                                    }) {
+                                        Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 modifier = Modifier.weight(1.2f)
                             )

@@ -1,5 +1,6 @@
 package com.example.balaji_earthmovers.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,11 +37,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -88,9 +92,12 @@ fun LedgerScreen(
     var expenseToEditPending by remember { mutableStateOf<ExpenseEntity?>(null) }
     var expenseToEdit by remember { mutableStateOf<ExpenseEntity?>(null) }
     var expenseToDelete by remember { mutableStateOf<ExpenseEntity?>(null) }
+    var expenseForDetail by remember { mutableStateOf<ExpenseEntity?>(null) }
+
     var incomeToEditPending by remember { mutableStateOf<IncomeEntity?>(null) }
     var incomeToEdit by remember { mutableStateOf<IncomeEntity?>(null) }
     var incomeToDelete by remember { mutableStateOf<IncomeEntity?>(null) }
+    var incomeForDetail by remember { mutableStateOf<IncomeEntity?>(null) }
 
     val expenses by viewModel.allExpenses.collectAsState()
     val incomes by viewModel.allIncomes.collectAsState()
@@ -192,8 +199,7 @@ fun LedgerScreen(
                         items(expenses, key = { it.id }) { expense ->
                             ExpenseItemCard(
                                 expense = expense,
-                                onEdit = { expenseToEditPending = expense },
-                                onDelete = { expenseToDelete = expense }
+                                onOpenDetail = { expenseForDetail = expense }
                             )
                         }
                     }
@@ -213,14 +219,43 @@ fun LedgerScreen(
                         items(incomes, key = { it.id }) { income ->
                             IncomeItemCard(
                                 income = income,
-                                onEdit = { incomeToEditPending = income },
-                                onDelete = { incomeToDelete = income }
+                                onOpenDetail = { incomeForDetail = income }
                             )
                         }
                     }
                 }
             }
         }
+    }
+
+    expenseForDetail?.let { expense ->
+        ExpenseDetailDialog(
+            expense = expense,
+            onEdit = {
+                expenseToEditPending = expense
+                expenseForDetail = null
+            },
+            onDelete = {
+                expenseToDelete = expense
+                expenseForDetail = null
+            },
+            onDismiss = { expenseForDetail = null }
+        )
+    }
+
+    incomeForDetail?.let { income ->
+        IncomeDetailDialog(
+            income = income,
+            onEdit = {
+                incomeToEditPending = income
+                incomeForDetail = null
+            },
+            onDelete = {
+                incomeToDelete = income
+                incomeForDetail = null
+            },
+            onDismiss = { incomeForDetail = null }
+        )
     }
 
     if (showExpenseDialog) {
@@ -307,15 +342,16 @@ fun LedgerScreen(
 @Composable
 fun ExpenseItemCard(
     expense: ExpenseEntity,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onOpenDetail: () -> Unit
 ) {
     val dateStr = remember(expense.date) {
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(expense.date))
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenDetail() },
         elevation = CardDefaults.cardElevation(1.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -342,36 +378,116 @@ fun ExpenseItemCard(
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "- ₹${"%.2f".format(expense.amount)}",
-                    fontWeight = FontWeight.ExtraBold,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = ExpenseRed
-                )
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit Expense", tint = MaterialTheme.colorScheme.primary)
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Expense", tint = ExpenseRed)
-                }
-            }
+            Text(
+                "- ₹${"%.2f".format(expense.amount)}",
+                fontWeight = FontWeight.ExtraBold,
+                style = MaterialTheme.typography.titleMedium,
+                color = ExpenseRed
+            )
         }
     }
 }
 
 @Composable
+fun ExpenseDetailDialog(
+    expense: ExpenseEntity,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val dateStr = remember(expense.date) {
+        SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(expense.date))
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(expense.expenseName, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("Expense / खर्च • $dateStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = ExpenseRed.copy(alpha = 0.08f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Expense Amount:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text("- ₹${"%.2f".format(expense.amount)}", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium, color = ExpenseRed)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Category / Type:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(expense.expenseType.name, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (expense.description.isNotBlank()) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Note / Description:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(expense.description, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Internal Actions: Edit & Delete
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Edit")
+                    }
+
+                    Button(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Delete")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
 fun IncomeItemCard(
     income: IncomeEntity,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onOpenDetail: () -> Unit
 ) {
     val dateStr = remember(income.date) {
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(income.date))
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenDetail() },
         elevation = CardDefaults.cardElevation(1.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -410,22 +526,107 @@ fun IncomeItemCard(
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "+ ₹${"%.2f".format(income.paidAmount)}",
-                    fontWeight = FontWeight.ExtraBold,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = ProfitGreen
-                )
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit Income", tint = MaterialTheme.colorScheme.primary)
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Income", tint = ExpenseRed)
-                }
-            }
+            Text(
+                "+ ₹${"%.2f".format(income.paidAmount)}",
+                fontWeight = FontWeight.ExtraBold,
+                style = MaterialTheme.typography.titleMedium,
+                color = ProfitGreen
+            )
         }
     }
+}
+
+@Composable
+fun IncomeDetailDialog(
+    income: IncomeEntity,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val dateStr = remember(income.date) {
+        SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(income.date))
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text("Payment Received / जमा रक्कम", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(dateStr, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = ProfitGreen.copy(alpha = 0.08f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Amount Received:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text("+ ₹${"%.2f".format(income.paidAmount)}", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium, color = ProfitGreen)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Payment Mode:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(income.paymentMode.name, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (income.transactionReferenceId.isNotBlank()) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Transaction / UTR Ref:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(income.transactionReferenceId, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        if (income.pendingAmount > 0) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Remaining Pending:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("₹${"%.2f".format(income.pendingAmount)}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, color = ExpenseRed)
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Internal Actions: Edit & Delete
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Edit")
+                    }
+
+                    Button(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Delete")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

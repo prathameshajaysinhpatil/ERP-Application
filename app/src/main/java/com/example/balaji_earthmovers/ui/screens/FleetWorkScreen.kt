@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +56,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -99,6 +101,10 @@ import com.example.balaji_earthmovers.ui.util.EntityAvatar
 import com.example.balaji_earthmovers.ui.util.LocalStrings
 import com.example.balaji_earthmovers.ui.viewmodel.BalajiViewModel
 import com.example.balaji_earthmovers.ui.viewmodel.FleetSeasonFilter
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,14 +119,47 @@ fun FleetWorkScreen(
     var vehicleToEditPending by remember { mutableStateOf<VehicleEntity?>(null) }
     var vehicleToEdit by remember { mutableStateOf<VehicleEntity?>(null) }
     var vehicleToDelete by remember { mutableStateOf<VehicleEntity?>(null) }
+    var vehicleForDetail by remember { mutableStateOf<VehicleEntity?>(null) }
 
     var workToEditPending by remember { mutableStateOf<WorkWithDetails?>(null) }
     var workToEdit by remember { mutableStateOf<WorkWithDetails?>(null) }
     var workToDelete by remember { mutableStateOf<WorkWithDetails?>(null) }
+    var workForDetail by remember { mutableStateOf<WorkWithDetails?>(null) }
 
     val vehicles by viewModel.filteredVehicles.collectAsState()
     val works by viewModel.allWorks.collectAsState()
     val seasonFilter by viewModel.seasonFilter.collectAsState()
+
+    val filteredWorks = remember(works, seasonFilter) {
+        when (seasonFilter) {
+            FleetSeasonFilter.ALL -> works
+            FleetSeasonFilter.THIS_MONTH -> {
+                val cal = Calendar.getInstance()
+                val curMonth = cal.get(Calendar.MONTH)
+                val curYear = cal.get(Calendar.YEAR)
+                works.filter {
+                    cal.timeInMillis = it.work.date
+                    cal.get(Calendar.MONTH) == curMonth && cal.get(Calendar.YEAR) == curYear
+                }
+            }
+            FleetSeasonFilter.MONSOON -> {
+                val cal = Calendar.getInstance()
+                works.filter {
+                    cal.timeInMillis = it.work.date
+                    val m = cal.get(Calendar.MONTH)
+                    m in 5..8 // June-September
+                }
+            }
+            FleetSeasonFilter.PEAK_CONSTRUCTION -> {
+                val cal = Calendar.getInstance()
+                works.filter {
+                    cal.timeInMillis = it.work.date
+                    val m = cal.get(Calendar.MONTH)
+                    m in 9..11 || m in 0..4 // October-May
+                }
+            }
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -152,12 +191,12 @@ fun FleetWorkScreen(
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("${strings.tabWork} (${works.size})", fontWeight = FontWeight.SemiBold) }
+                    text = { Text("${strings.tabWork} (${filteredWorks.size})", fontWeight = FontWeight.SemiBold) }
                 )
             }
 
             if (selectedTab == 0) {
-                // Seasonal Filter Row
+                // Seasonal Filter Row for Vehicles
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -195,16 +234,38 @@ fun FleetWorkScreen(
                         items(vehicles, key = { it.id }) { vehicle ->
                             VehicleCard(
                                 vehicle = vehicle,
-                                onEdit = { vehicleToEditPending = vehicle },
-                                onDelete = { vehicleToDelete = vehicle },
-                                onMarkServiced = { viewModel.markVehicleServiced(vehicle.id) }
+                                onClick = { vehicleForDetail = vehicle }
                             )
                         }
                     }
                 }
             } else {
+                // Seasonal Filter Row for Work
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.FilterList,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FleetSeasonFilter.values().forEach { filter ->
+                        FilterChip(
+                            selected = seasonFilter == filter,
+                            onClick = { viewModel.setSeasonFilter(filter) },
+                            label = { Text(filter.displayName) }
+                        )
+                    }
+                }
+
                 // Work Entries List
-                if (works.isEmpty()) {
+                if (filteredWorks.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("No work entries logged. Tap '+' to add work.")
                     }
@@ -214,11 +275,10 @@ fun FleetWorkScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(works, key = { it.work.id }) { workDetails ->
+                        items(filteredWorks, key = { it.work.id }) { workDetails ->
                             WorkEntryDetailCard(
                                 workDetails = workDetails,
-                                onEdit = { workToEditPending = workDetails },
-                                onDelete = { workToDelete = workDetails }
+                                onClick = { workForDetail = workDetails }
                             )
                         }
                     }
@@ -232,6 +292,25 @@ fun FleetWorkScreen(
             vehicleToEdit = null,
             viewModel = viewModel,
             onDismiss = { showAddVehicleDialog = false }
+        )
+    }
+
+    vehicleForDetail?.let { v ->
+        VehicleDetailDialog(
+            vehicle = v,
+            onEdit = {
+                vehicleToEditPending = v
+                vehicleForDetail = null
+            },
+            onDelete = {
+                vehicleToDelete = v
+                vehicleForDetail = null
+            },
+            onMarkServiced = {
+                viewModel.markVehicleServiced(v.id)
+                vehicleForDetail = null
+            },
+            onDismiss = { vehicleForDetail = null }
         )
     }
 
@@ -265,6 +344,21 @@ fun FleetWorkScreen(
             onConfirmDelete = {
                 viewModel.deleteVehicle(v.id)
             }
+        )
+    }
+
+    workForDetail?.let { w ->
+        WorkDetailDialog(
+            workDetails = w,
+            onEdit = {
+                workToEditPending = w
+                workForDetail = null
+            },
+            onDelete = {
+                workToDelete = w
+                workForDetail = null
+            },
+            onDismiss = { workForDetail = null }
         )
     }
 
@@ -305,16 +399,16 @@ fun FleetWorkScreen(
 @Composable
 fun VehicleCard(
     vehicle: VehicleEntity,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onMarkServiced: () -> Unit
+    onClick: () -> Unit
 ) {
     val isOverdue = vehicle.isServiceDue
     val hoursSinceService = vehicle.hoursSinceLastService
     val progress = (hoursSinceService / 250.0).coerceIn(0.0, 1.0).toFloat()
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         elevation = CardDefaults.cardElevation(2.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isOverdue) ExpenseRed.copy(alpha = 0.06f) else MaterialTheme.colorScheme.surface
@@ -349,13 +443,16 @@ fun VehicleCard(
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Vehicle", tint = MaterialTheme.colorScheme.primary)
-                    }
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Vehicle", tint = ExpenseRed)
-                    }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                ) {
+                    Text(
+                        "Tap for details",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
@@ -422,35 +519,164 @@ fun VehicleCard(
                     Text("Fuel: ₹${"%.0f".format(vehicle.fuelExpenseTotal)}", style = MaterialTheme.typography.bodySmall)
                 }
             }
-
-            // Action: Reset 250h service button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                OutlinedButton(
-                    onClick = onMarkServiced,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Reset Service", style = MaterialTheme.typography.labelSmall)
-                }
-            }
         }
     }
 }
 
 @Composable
+fun VehicleDetailDialog(
+    vehicle: VehicleEntity,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onMarkServiced: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isOverdue = vehicle.isServiceDue
+    val hoursSinceService = vehicle.hoursSinceLastService
+    val progress = (hoursSinceService / 250.0).coerceIn(0.0, 1.0).toFloat()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                EntityAvatar(
+                    imageUri = vehicle.imageUri,
+                    fallbackIcon = Icons.Default.DirectionsCar,
+                    contentDescription = vehicle.vehicleName,
+                    size = 52.dp
+                )
+                Column {
+                    Text(vehicle.vehicleName, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(vehicle.vehicleNumber, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Model / Type:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(vehicle.model.ifBlank { "Standard" }, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Last Service At:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${"%.1f".format(vehicle.lastServiceHours)} hrs", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall, color = ProfitGreen)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total Worked Hours:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${vehicle.workedHours} hrs", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall, color = InfoBlue)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total Fuel Expense:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("₹${"%.0f".format(vehicle.fuelExpenseTotal)}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall, color = AmberPrimary)
+                        }
+                    }
+                }
+
+                // Service Tracker
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Service Interval: ${"%.1f".format(hoursSinceService)} / 250 hrs",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isOverdue) ExpenseRed else MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            if (isOverdue) "Overdue by ${"%.1f".format(hoursSinceService - 250.0)} hrs" else "${"%.1f".format(250.0 - hoursSinceService)} hrs left",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isOverdue) ExpenseRed else ProfitGreen,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = if (isOverdue) ExpenseRed else AmberPrimary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = onMarkServiced,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Reset 250h Service Counter", style = MaterialTheme.typography.labelMedium)
+                }
+
+                HorizontalDivider()
+
+                // Actions Inside Card: Edit and Delete
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Edit")
+                    }
+
+                    Button(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Delete")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
 fun WorkEntryDetailCard(
     workDetails: WorkWithDetails,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onClick: () -> Unit
 ) {
     val context = LocalContext.current
     val work = workDetails.work
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         elevation = CardDefaults.cardElevation(2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -512,13 +738,6 @@ fun WorkEntryDetailCard(
                             Icon(Icons.Default.Sms, contentDescription = "SMS Bill", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                         }
                     }
-
-                    IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Work", tint = MaterialTheme.colorScheme.primary)
-                    }
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Work", tint = ExpenseRed)
-                    }
                 }
             }
 
@@ -541,6 +760,157 @@ fun WorkEntryDetailCard(
             }
         }
     }
+}
+
+@Composable
+fun WorkDetailDialog(
+    workDetails: WorkWithDetails,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val work = workDetails.work
+    val dateStr = remember(work.date) {
+        SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(work.date))
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(work.workName, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(dateStr, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Customer details card with contact actions
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Customer / Client:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(workDetails.customer.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                if (workDetails.customer.mobileNumber.isNotBlank()) {
+                                    Text(workDetails.customer.mobileNumber, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                            if (workDetails.customer.mobileNumber.isNotBlank()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    IconButton(onClick = { CustomerShareUtils.makeCall(context, workDetails.customer.mobileNumber) }) {
+                                        Icon(Icons.Default.Call, contentDescription = "Call", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                    IconButton(onClick = {
+                                        CustomerShareUtils.openWhatsApp(
+                                            context = context,
+                                            mobileNumber = workDetails.customer.mobileNumber,
+                                            customerName = workDetails.customer.name,
+                                            workName = work.workName,
+                                            dateMillis = work.date,
+                                            totalAmount = work.totalWorkAmount,
+                                            pendingAmount = workDetails.customer.pendingBalance
+                                        )
+                                    }) {
+                                        Icon(Icons.Default.ChatBubble, contentDescription = "WhatsApp", tint = ProfitGreen)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Work specifics
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Vehicle:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${workDetails.vehicle.vehicleName} (${workDetails.vehicle.vehicleNumber})", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Operating Driver:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(workDetails.driver.driverName, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Pricing Mode:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(if (work.hourlyRate > 0) "Hourly (${work.totalTimeHours}h @ ₹${work.hourlyRate}/h)" else "Fixed Amount", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (work.location.isNotBlank()) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Site Location:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(work.location, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+
+                // Financial Summary
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total Billed Amount:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text("₹${"%.2f".format(work.totalWorkAmount)}", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.bodyMedium, color = ProfitGreen)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Customer Balance Pending:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("₹${"%.2f".format(workDetails.customer.pendingBalance)}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, color = if (workDetails.customer.pendingBalance > 0) ExpenseRed else ProfitGreen)
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Actions Inside Card: Edit and Delete
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Edit")
+                    }
+
+                    Button(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Delete")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

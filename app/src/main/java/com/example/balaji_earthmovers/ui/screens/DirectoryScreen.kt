@@ -54,6 +54,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -111,10 +112,12 @@ fun DirectoryScreen(
     var driverToEditPending by remember { mutableStateOf<DriverEntity?>(null) }
     var driverToEdit by remember { mutableStateOf<DriverEntity?>(null) }
     var driverToDelete by remember { mutableStateOf<DriverEntity?>(null) }
+    var driverForDetail by remember { mutableStateOf<DriverEntity?>(null) }
 
     var customerToEditPending by remember { mutableStateOf<CustomerEntity?>(null) }
     var customerToEdit by remember { mutableStateOf<CustomerEntity?>(null) }
     var customerToDelete by remember { mutableStateOf<CustomerEntity?>(null) }
+    var customerForDetail by remember { mutableStateOf<CustomerEntity?>(null) }
 
     val drivers by viewModel.allDrivers.collectAsState()
     val customers by viewModel.allCustomers.collectAsState()
@@ -169,8 +172,7 @@ fun DirectoryScreen(
                             DriverDirectoryCard(
                                 driver = driver,
                                 onOpenPassbook = { onSelectDriverPassbook(driver) },
-                                onEdit = { driverToEditPending = driver },
-                                onDelete = { driverToDelete = driver }
+                                onOpenDetail = { driverForDetail = driver }
                             )
                         }
                     }
@@ -191,8 +193,7 @@ fun DirectoryScreen(
                             CustomerDirectoryCard(
                                 customer = customer,
                                 onOpenPassbook = { onSelectCustomerPassbook(customer) },
-                                onEdit = { customerToEditPending = customer },
-                                onDelete = { customerToDelete = customer }
+                                onOpenDetail = { customerForDetail = customer }
                             )
                         }
                     }
@@ -205,6 +206,25 @@ fun DirectoryScreen(
         AddDriverDialog(
             viewModel = viewModel,
             onDismiss = { showAddDriverDialog = false }
+        )
+    }
+
+    driverForDetail?.let { driver ->
+        DriverDetailDialog(
+            driver = driver,
+            onOpenPassbook = {
+                onSelectDriverPassbook(driver)
+                driverForDetail = null
+            },
+            onEdit = {
+                driverToEditPending = driver
+                driverForDetail = null
+            },
+            onDelete = {
+                driverToDelete = driver
+                driverForDetail = null
+            },
+            onDismiss = { driverForDetail = null }
         )
     }
 
@@ -248,6 +268,25 @@ fun DirectoryScreen(
         )
     }
 
+    customerForDetail?.let { customer ->
+        CustomerDetailDialog(
+            customer = customer,
+            onOpenPassbook = {
+                onSelectCustomerPassbook(customer)
+                customerForDetail = null
+            },
+            onEdit = {
+                customerToEditPending = customer
+                customerForDetail = null
+            },
+            onDelete = {
+                customerToDelete = customer
+                customerForDetail = null
+            },
+            onDismiss = { customerForDetail = null }
+        )
+    }
+
     customerToEditPending?.let { customer ->
         AdminPasswordEditDialog(
             itemType = "Customer",
@@ -286,8 +325,7 @@ fun DirectoryScreen(
 fun DriverDirectoryCard(
     driver: DriverEntity,
     onOpenPassbook: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onOpenDetail: () -> Unit
 ) {
     val maskedAadhaar = remember(driver.adharNumber) {
         val decrypted = CryptoManager.decrypt(driver.adharNumber)
@@ -295,7 +333,9 @@ fun DriverDirectoryCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenDetail() },
         elevation = CardDefaults.cardElevation(2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -337,29 +377,21 @@ fun DriverDirectoryCard(
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Driver", tint = MaterialTheme.colorScheme.primary)
-                    }
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Driver", tint = ExpenseRed)
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (driver.pendingSalary > 0) MaterialTheme.colorScheme.primaryContainer else ProfitGreen.copy(alpha = 0.12f),
-                        contentColor = if (driver.pendingSalary > 0) MaterialTheme.colorScheme.onPrimaryContainer else ProfitGreen
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (driver.pendingSalary > 0) MaterialTheme.colorScheme.primaryContainer else ProfitGreen.copy(alpha = 0.12f),
+                    contentColor = if (driver.pendingSalary > 0) MaterialTheme.colorScheme.onPrimaryContainer else ProfitGreen
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalAlignment = Alignment.End
                     ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            horizontalAlignment = Alignment.End
-                        ) {
-                            Text("Pending", style = MaterialTheme.typography.labelSmall)
-                            Text(
-                                "₹${"%.0f".format(driver.pendingSalary)}",
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
+                        Text("Pending", style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            "₹${"%.0f".format(driver.pendingSalary)}",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             }
@@ -389,17 +421,160 @@ fun DriverDirectoryCard(
 }
 
 @Composable
+fun DriverDetailDialog(
+    driver: DriverEntity,
+    onOpenPassbook: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val decryptedAadhaar = remember(driver.adharNumber) {
+        CryptoManager.decrypt(driver.adharNumber)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                EntityAvatar(
+                    imageUri = driver.imageUri,
+                    fallbackIcon = Icons.Default.Person,
+                    contentDescription = driver.driverName,
+                    size = 52.dp
+                )
+                Column {
+                    Text(driver.driverName, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Driver / चालक", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("Mobile Number:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(driver.mobileNumber, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                                if (driver.mobileNumber.isNotBlank()) {
+                                    IconButton(
+                                        onClick = { CustomerShareUtils.makeCall(context, driver.mobileNumber) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Call, contentDescription = "Call", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
+                        }
+                        if (driver.address.isNotBlank()) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Address:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(driver.address, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Aadhaar Number:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(decryptedAadhaar.ifBlank { "Not provided" }, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Monthly Salary:", style = MaterialTheme.typography.bodySmall)
+                            Text("₹${"%.0f".format(driver.monthlySalary)}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Paid Salary:", style = MaterialTheme.typography.bodySmall)
+                            Text("₹${"%.0f".format(driver.givenSalary)}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, color = ProfitGreen)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Pending Salary:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text("₹${"%.0f".format(driver.pendingSalary)}", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.bodyMedium, color = if (driver.pendingSalary > 0) ExpenseRed else ProfitGreen)
+                        }
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onOpenPassbook,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Open Driver Passbook / पासबुक उघडा", style = MaterialTheme.typography.labelMedium)
+                }
+
+                HorizontalDivider()
+
+                // Internal Actions: Edit & Delete
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Edit")
+                    }
+
+                    Button(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Delete")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
 fun CustomerDirectoryCard(
     customer: CustomerEntity,
     onOpenPassbook: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onOpenDetail: () -> Unit
 ) {
     val context = LocalContext.current
     var contactMenuExpanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenDetail() },
         elevation = CardDefaults.cardElevation(2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -494,29 +669,21 @@ fun CustomerDirectoryCard(
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Customer", tint = MaterialTheme.colorScheme.primary)
-                    }
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Customer", tint = ExpenseRed)
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (customer.pendingBalance > 0) ExpenseRed.copy(alpha = 0.12f) else ProfitGreen.copy(alpha = 0.12f),
-                        contentColor = if (customer.pendingBalance > 0) ExpenseRed else ProfitGreen
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (customer.pendingBalance > 0) ExpenseRed.copy(alpha = 0.12f) else ProfitGreen.copy(alpha = 0.12f),
+                    contentColor = if (customer.pendingBalance > 0) ExpenseRed else ProfitGreen
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalAlignment = Alignment.End
                     ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            horizontalAlignment = Alignment.End
-                        ) {
-                            Text("Receivable", style = MaterialTheme.typography.labelSmall)
-                            Text(
-                                "₹${"%.2f".format(customer.pendingBalance)}",
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
+                        Text("Receivable", style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            "₹${"%.2f".format(customer.pendingBalance)}",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             }
@@ -543,6 +710,175 @@ fun CustomerDirectoryCard(
             }
         }
     }
+}
+
+@Composable
+fun CustomerDetailDialog(
+    customer: CustomerEntity,
+    onOpenPassbook: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                EntityAvatar(
+                    imageUri = customer.imageUri,
+                    fallbackIcon = Icons.Default.Business,
+                    contentDescription = customer.name,
+                    size = 52.dp
+                )
+                Column {
+                    Text(customer.name, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Customer / ग्राहक", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("Mobile Number:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(customer.mobileNumber, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                                if (customer.mobileNumber.isNotBlank()) {
+                                    IconButton(
+                                        onClick = { CustomerShareUtils.makeCall(context, customer.mobileNumber) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Call, contentDescription = "Call", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            CustomerShareUtils.openWhatsApp(
+                                                context = context,
+                                                mobileNumber = customer.mobileNumber,
+                                                customerName = customer.name,
+                                                totalAmount = customer.totalBilled,
+                                                pendingAmount = customer.pendingBalance
+                                            )
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.ChatBubble, contentDescription = "WhatsApp", tint = ProfitGreen, modifier = Modifier.size(16.dp))
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            CustomerShareUtils.openSms(
+                                                context = context,
+                                                mobileNumber = customer.mobileNumber,
+                                                customerName = customer.name,
+                                                totalAmount = customer.totalBilled,
+                                                pendingAmount = customer.pendingBalance
+                                            )
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Sms, contentDescription = "SMS", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
+                        }
+                        if (customer.address.isNotBlank()) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Address:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(customer.address, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        if (customer.gstin.isNotBlank()) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("GSTIN:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(customer.gstin, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total Billed:", style = MaterialTheme.typography.bodySmall)
+                            Text("₹${"%.2f".format(customer.totalBilled)}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total Paid:", style = MaterialTheme.typography.bodySmall)
+                            Text("₹${"%.2f".format(customer.totalPaid)}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, color = ProfitGreen)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Receivable Balance:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text("₹${"%.2f".format(customer.pendingBalance)}", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.bodyMedium, color = if (customer.pendingBalance > 0) ExpenseRed else ProfitGreen)
+                        }
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onOpenPassbook,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Open Customer Khata / खातेवही उघडा", style = MaterialTheme.typography.labelMedium)
+                }
+
+                HorizontalDivider()
+
+                // Internal Actions: Edit & Delete
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Edit")
+                    }
+
+                    Button(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Delete")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -47,6 +47,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -74,6 +75,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.example.balaji_earthmovers.ui.theme.ProfitGreen
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 
 data class ScannedRecordData(
     val name: String = "",
@@ -104,14 +108,46 @@ fun DocumentScanDialog(
     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var recognizedText by remember { mutableStateOf("") }
     var parsedData by remember { mutableStateOf(ScannedRecordData()) }
+    var isScanning by remember { mutableStateOf(false) }
+
+    fun processBitmapWithOcr(bitmap: Bitmap) {
+        capturedBitmap = bitmap
+        isScanning = true
+        try {
+            val inputImage = InputImage.fromBitmap(bitmap, 0)
+            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+            recognizer.process(inputImage)
+                .addOnSuccessListener { visionText ->
+                    isScanning = false
+                    val text = visionText.text
+                    recognizedText = text
+                    val parsed = parseDocumentText(text)
+                    parsedData = parsed
+                    // Auto-fill directly and dismiss if parsed data has meaningful content
+                    if (parsed.name.isNotBlank() || parsed.mobileNumber.isNotBlank() || parsed.vehicleNumber.isNotBlank() || parsed.aadhaarNumber.isNotBlank() || parsed.hours.isNotBlank() || parsed.amount.isNotBlank()) {
+                        Toast.makeText(context, "Scanned & fields auto-filled! / माहिती आपोआप भरली गेली!", Toast.LENGTH_SHORT).show()
+                        onDataExtracted(parsed)
+                        onDismiss()
+                    } else {
+                        Toast.makeText(context, "Text scanned! Please verify or map fields below.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .addOnFailureListener { e ->
+                    isScanning = false
+                    Toast.makeText(context, "OCR scanning error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
+        } catch (e: Exception) {
+            isScanning = false
+            Toast.makeText(context, "OCR setup error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // Camera launcher (takes a photo directly into Bitmap)
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap: Bitmap? ->
         if (bitmap != null) {
-            capturedBitmap = bitmap
-            Toast.makeText(context, "Photo captured! You can map text or verify fields below.", Toast.LENGTH_SHORT).show()
+            processBitmapWithOcr(bitmap)
         }
     }
 
@@ -143,8 +179,7 @@ fun DocumentScanDialog(
                     val source = ImageDecoder.createSource(context.contentResolver, uri)
                     ImageDecoder.decodeBitmap(source)
                 }
-                capturedBitmap = bmp
-                Toast.makeText(context, "Image loaded from gallery!", Toast.LENGTH_SHORT).show()
+                processBitmapWithOcr(bmp)
             } catch (e: Exception) {
                 Toast.makeText(context, "Failed to load image: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             }
@@ -238,6 +273,34 @@ fun DocumentScanDialog(
                         Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("From Gallery")
+                    }
+                }
+
+                if (isScanning) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                "Scanning document & auto-filling fields...",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 }
 
@@ -530,6 +593,10 @@ fun parseDocumentText(text: String): ScannedRecordData {
                 line.length in 3..40
     } ?: ""
 
+    // 9. Location / Site address detection
+    val locationRegex = Regex("""(?:Site|Location|ठिकाण|गाव|साइट|At|Site at|Work at)\s*[:=-]?\s*([A-Za-z0-9\s,\-]+)""", RegexOption.IGNORE_CASE)
+    val foundLocation = locationRegex.find(text)?.groups?.get(1)?.value?.trim() ?: ""
+
     return ScannedRecordData(
         name = foundName,
         mobileNumber = foundPhone,
@@ -539,6 +606,7 @@ fun parseDocumentText(text: String): ScannedRecordData {
         amount = foundAmount,
         hours = foundHours,
         rate = foundRate,
+        location = foundLocation,
         rawText = text
     )
 }

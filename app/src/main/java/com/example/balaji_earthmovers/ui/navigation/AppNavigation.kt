@@ -3,6 +3,7 @@ package com.example.balaji_earthmovers.ui.navigation
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,11 +20,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lock
@@ -32,17 +37,27 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -266,17 +281,44 @@ fun MainErpApp(
                                         Text(
                                             text = title,
                                             fontSize = 10.5.sp,
-                                            fontWeight = if (currentTab == item) FontWeight.Bold else FontWeight.Medium,
+                                            fontWeight = if (currentTab == item && !showHamburgerMenu) FontWeight.Bold else FontWeight.Medium,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                             textAlign = TextAlign.Center
                                         )
                                     },
                                     alwaysShowLabel = true,
-                                    selected = currentTab == item,
-                                    onClick = { currentTab = item }
+                                    selected = currentTab == item && !showHamburgerMenu,
+                                    onClick = {
+                                        currentTab = item
+                                        showHamburgerMenu = false
+                                    }
                                 )
                             }
+
+                            // 5th Navigation Item: Menu (moved down next to Khata)
+                            NavigationBarItem(
+                                icon = {
+                                    Icon(
+                                        Icons.Default.Menu,
+                                        contentDescription = "Menu",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = "Menu",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (showHamburgerMenu) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                alwaysShowLabel = true,
+                                selected = showHamburgerMenu,
+                                onClick = { showHamburgerMenu = true }
+                            )
                         }
                     }
                 ) { padding ->
@@ -385,89 +427,201 @@ fun MainErpApp(
             ModalBottomSheet(
                 onDismissRequest = { showHamburgerMenu = false },
                 containerColor = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             ) {
+                var quickMenuExpanded by remember { mutableStateOf(false) }
+                var selectedQuickModule by remember { mutableStateOf("") }
+
+                val quickModules = listOf(
+                    Triple("Vehicles / गाड्या (मशिनरी)", Icons.Default.DirectionsCar) {
+                        currentTab = NavItem.Vehicle
+                        showHamburgerMenu = false
+                    },
+                    Triple("Drivers / चालक (पगार)", Icons.Default.Person) {
+                        currentTab = NavItem.Driver
+                        showHamburgerMenu = false
+                    },
+                    Triple("Customers / ग्राहक यादी", Icons.Default.People) {
+                        currentTab = NavItem.Customer
+                        showHamburgerMenu = false
+                    },
+                    Triple("Work / कामे नोंदणी", Icons.Default.Assignment) {
+                        currentTab = NavItem.Work
+                        showHamburgerMenu = false
+                    },
+                    Triple("Income / जमा (उत्पन्न)", Icons.Default.TrendingUp) {
+                        currentTab = NavItem.Ledger
+                        showHamburgerMenu = false
+                    },
+                    Triple("Expense / खर्च नोंद", Icons.Default.TrendingDown) {
+                        currentTab = NavItem.Ledger
+                        showHamburgerMenu = false
+                    }
+                )
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        "Balaji Earthmovers Menu",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Balaji Earthmovers Menu",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Text(
+                                "Quick Access",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+
+                    // ==================== 100% WIDTH QUICK MENU DROPDOWN ====================
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(Icons.Default.Bolt, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                Text("Quick Menu / जलद मेनू", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = MaterialTheme.colorScheme.primary)
+                            }
+
+                            ExposedDropdownMenuBox(
+                                expanded = quickMenuExpanded,
+                                onExpandedChange = { quickMenuExpanded = it },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedQuickModule.ifBlank { "Select Quick Module (थेट जा...)" },
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = quickMenuExpanded) },
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                                    ),
+                                    modifier = Modifier
+                                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
+                                        .fillMaxWidth()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = quickMenuExpanded,
+                                    onDismissRequest = { quickMenuExpanded = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    quickModules.forEach { (label, icon, action) ->
+                                        DropdownMenuItem(
+                                            text = { Text(label, fontWeight = FontWeight.Medium) },
+                                            leadingIcon = { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                                            onClick = {
+                                                selectedQuickModule = label
+                                                quickMenuExpanded = false
+                                                action()
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
 
-                    // Vehicles option
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null) },
-                        label = { Text("Vehicles & Machinery (गाड्या)") },
-                        selected = currentTab == NavItem.Vehicle,
-                        onClick = {
-                            currentTab = NavItem.Vehicle
-                            showHamburgerMenu = false
-                        }
+                    // ==================== PROFESSIONAL RESPONSIVE MODULE CARDS ====================
+                    val menuModules = listOf(
+                        MenuCardItem(
+                            icon = Icons.Default.DirectionsCar,
+                            title = "Vehicles & Machinery",
+                            subtitle = "JCB, Poclain, Tractors, Service hours & maintenance",
+                            badge = "Fleet",
+                            onClick = {
+                                currentTab = NavItem.Vehicle
+                                showHamburgerMenu = false
+                            }
+                        ),
+                        MenuCardItem(
+                            icon = Icons.Default.Person,
+                            title = "Drivers Directory",
+                            subtitle = "Driver profiles, salaries, advances & passbook",
+                            badge = "Staff",
+                            onClick = {
+                                currentTab = NavItem.Driver
+                                showHamburgerMenu = false
+                            }
+                        ),
+                        MenuCardItem(
+                            icon = Icons.Default.Assessment,
+                            title = "Business Reports",
+                            subtitle = "Filtered vehicle, driver & customer statements",
+                            badge = "Reports",
+                            onClick = {
+                                currentTab = NavItem.Report
+                                showHamburgerMenu = false
+                            }
+                        ),
+                        MenuCardItem(
+                            icon = Icons.Default.Storage,
+                            title = "Data, Storage & Backup",
+                            subtitle = "Export JSON, import database, secure local backup",
+                            badge = "Backup",
+                            onClick = {
+                                showHamburgerMenu = false
+                                isViewingSettings = true
+                            }
+                        ),
+                        MenuCardItem(
+                            icon = Icons.Default.Settings,
+                            title = "App Settings & Profile",
+                            subtitle = "Business name, owner info, themes & security PIN",
+                            badge = "Config",
+                            onClick = {
+                                showHamburgerMenu = false
+                                isViewingSettings = true
+                            }
+                        ),
+                        MenuCardItem(
+                            icon = Icons.Default.Lock,
+                            title = "Lock App",
+                            subtitle = "Instantly secure session with PIN protection",
+                            badge = "Security",
+                            onClick = {
+                                showHamburgerMenu = false
+                                isAppUnlocked = false
+                            }
+                        )
                     )
 
-                    // Drivers option
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                        label = { Text("Drivers & Passbook (चालक व पगार)") },
-                        selected = currentTab == NavItem.Driver,
-                        onClick = {
-                            currentTab = NavItem.Driver
-                            showHamburgerMenu = false
-                        }
-                    )
-
-                    // Reports option
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Assessment, contentDescription = null) },
-                        label = { Text("Business Reports & Statements (अहवाल)") },
-                        selected = currentTab == NavItem.Report,
-                        onClick = {
-                            currentTab = NavItem.Report
-                            showHamburgerMenu = false
-                        }
-                    )
-
-                    // Data & Backup
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Storage, contentDescription = null) },
-                        label = { Text("Data, Storage & Backup (बॅकअप)") },
-                        selected = false,
-                        onClick = {
-                            showHamburgerMenu = false
-                            isViewingSettings = true
-                        }
-                    )
-
-                    // App Settings
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                        label = { Text("App Settings & Profile (सेटिंग्ज व प्रोफाइल)") },
-                        selected = false,
-                        onClick = {
-                            showHamburgerMenu = false
-                            isViewingSettings = true
-                        }
-                    )
-
-                    // Lock App
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                        label = { Text("Lock App (ॲप लॉक करा)") },
-                        selected = false,
-                        onClick = {
-                            showHamburgerMenu = false
-                            isAppUnlocked = false
-                        }
-                    )
+                    menuModules.forEach { item ->
+                        ProfessionalMenuCard(item)
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -574,6 +728,89 @@ fun BalajiTopBar(
                     )
                 }
             }
+        }
+    }
+}
+
+data class MenuCardItem(
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+    val badge: String,
+    val onClick: () -> Unit
+)
+
+@Composable
+fun ProfessionalMenuCard(item: MenuCardItem) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = item.onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(42.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.title,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(item.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                item.badge,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Text(
+                        item.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

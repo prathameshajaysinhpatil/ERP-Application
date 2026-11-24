@@ -32,12 +32,15 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -79,6 +82,13 @@ enum class ReportPeriod(val label: String) {
     TODAY("Today")
 }
 
+enum class ReportCategoryFilter(val label: String) {
+    ALL("All Reports (सर्व अहवाल)"),
+    VEHICLE("Filter by Vehicle (वाहनानुसार अहवाल)"),
+    CUSTOMER("Filter by Customer (ग्राहकानुसार अहवाल)"),
+    DRIVER("Filter by Driver (चालकानुसार अहवाल)")
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsScreen(
@@ -97,13 +107,13 @@ fun ReportsScreen(
     val totalBilled by viewModel.totalWorkBilled.collectAsState()
 
     var selectedPeriod by remember { mutableStateOf(ReportPeriod.ALL) }
+    var selectedCategory by remember { mutableStateOf(ReportCategoryFilter.ALL) }
     var selectedVehicleId by remember { mutableStateOf<String?>(null) }
     var selectedCustomerId by remember { mutableStateOf<String?>(null) }
     var selectedDriverId by remember { mutableStateOf<String?>(null) }
 
-    var vehicleMenuExpanded by remember { mutableStateOf(false) }
-    var customerMenuExpanded by remember { mutableStateOf(false) }
-    var driverMenuExpanded by remember { mutableStateOf(false) }
+    var categoryDropdownExpanded by remember { mutableStateOf(false) }
+    var subDropdownExpanded by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
 
     // Filter works based on selected period and entity filters
@@ -175,103 +185,188 @@ fun ReportsScreen(
                 }
             }
 
-            // Entity Filters: Vehicle, Customer, Driver
-            Row(
+            // 2-Tier Cascading Filter Dropdowns with 100% width
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Vehicle filter chip
-                Box {
-                    val selVeh = allVehicles.find { it.id == selectedVehicleId }
-                    FilterChip(
-                        selected = selectedVehicleId != null,
-                        onClick = { vehicleMenuExpanded = true },
-                        label = { Text(selVeh?.let { "${it.vehicleName} (${it.vehicleNumber})" } ?: "All Vehicles", fontSize = 11.sp) }
+                // Tier 1: Primary Filter Category (100% width)
+                ExposedDropdownMenuBox(
+                    expanded = categoryDropdownExpanded,
+                    onExpandedChange = { categoryDropdownExpanded = it },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = selectedCategory.label,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Report Category / अहवाल प्रकार") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded) },
+                        leadingIcon = { Icon(Icons.Default.FilterList, contentDescription = null) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
                     )
-                    DropdownMenu(
-                        expanded = vehicleMenuExpanded,
-                        onDismissRequest = { vehicleMenuExpanded = false }
+                    ExposedDropdownMenu(
+                        expanded = categoryDropdownExpanded,
+                        onDismissRequest = { categoryDropdownExpanded = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("All Vehicles") },
-                            onClick = {
-                                selectedVehicleId = null
-                                vehicleMenuExpanded = false
-                            }
-                        )
-                        allVehicles.forEach { v ->
+                        ReportCategoryFilter.values().forEach { category ->
                             DropdownMenuItem(
-                                text = { Text("${v.vehicleName} (${v.vehicleNumber})") },
+                                text = { Text(category.label, fontWeight = if (selectedCategory == category) FontWeight.Bold else FontWeight.Normal) },
                                 onClick = {
-                                    selectedVehicleId = v.id
-                                    vehicleMenuExpanded = false
+                                    selectedCategory = category
+                                    categoryDropdownExpanded = false
+                                    when (category) {
+                                        ReportCategoryFilter.ALL -> {
+                                            selectedVehicleId = null
+                                            selectedCustomerId = null
+                                            selectedDriverId = null
+                                        }
+                                        ReportCategoryFilter.VEHICLE -> {
+                                            selectedCustomerId = null
+                                            selectedDriverId = null
+                                        }
+                                        ReportCategoryFilter.CUSTOMER -> {
+                                            selectedVehicleId = null
+                                            selectedDriverId = null
+                                        }
+                                        ReportCategoryFilter.DRIVER -> {
+                                            selectedVehicleId = null
+                                            selectedCustomerId = null
+                                        }
+                                    }
                                 }
                             )
                         }
                     }
                 }
 
-                // Customer filter chip
-                Box {
-                    val selCust = allCustomers.find { it.id == selectedCustomerId }
-                    FilterChip(
-                        selected = selectedCustomerId != null,
-                        onClick = { customerMenuExpanded = true },
-                        label = { Text(selCust?.name ?: "All Customers", fontSize = 11.sp) }
-                    )
-                    DropdownMenu(
-                        expanded = customerMenuExpanded,
-                        onDismissRequest = { customerMenuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("All Customers") },
-                            onClick = {
-                                selectedCustomerId = null
-                                customerMenuExpanded = false
-                            }
-                        )
-                        allCustomers.forEach { c ->
-                            DropdownMenuItem(
-                                text = { Text(c.name) },
-                                onClick = {
-                                    selectedCustomerId = c.id
-                                    customerMenuExpanded = false
-                                }
+                // Tier 2: Conditional Secondary Entity Dropdown (100% width) below Tier 1
+                when (selectedCategory) {
+                    ReportCategoryFilter.ALL -> {
+                        // No second dropdown required for All Reports
+                    }
+                    ReportCategoryFilter.VEHICLE -> {
+                        val selVeh = allVehicles.find { it.id == selectedVehicleId }
+                        ExposedDropdownMenuBox(
+                            expanded = subDropdownExpanded,
+                            onExpandedChange = { subDropdownExpanded = it },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = selVeh?.let { "${it.vehicleName} (${it.vehicleNumber})" } ?: "All Vehicles / सर्व वाहने",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Select Vehicle / वाहन निवडा") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subDropdownExpanded) },
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
                             )
+                            ExposedDropdownMenu(
+                                expanded = subDropdownExpanded,
+                                onDismissRequest = { subDropdownExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("All Vehicles / सर्व वाहने") },
+                                    onClick = {
+                                        selectedVehicleId = null
+                                        subDropdownExpanded = false
+                                    }
+                                )
+                                allVehicles.forEach { v ->
+                                    DropdownMenuItem(
+                                        text = { Text("${v.vehicleName} (${v.vehicleNumber})") },
+                                        onClick = {
+                                            selectedVehicleId = v.id
+                                            subDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
-                }
-
-                // Driver filter chip
-                Box {
-                    val selDriv = allDrivers.find { it.id == selectedDriverId }
-                    FilterChip(
-                        selected = selectedDriverId != null,
-                        onClick = { driverMenuExpanded = true },
-                        label = { Text(selDriv?.driverName ?: "All Drivers", fontSize = 11.sp) }
-                    )
-                    DropdownMenu(
-                        expanded = driverMenuExpanded,
-                        onDismissRequest = { driverMenuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("All Drivers") },
-                            onClick = {
-                                selectedDriverId = null
-                                driverMenuExpanded = false
-                            }
-                        )
-                        allDrivers.forEach { d ->
-                            DropdownMenuItem(
-                                text = { Text(d.driverName) },
-                                onClick = {
-                                    selectedDriverId = d.id
-                                    driverMenuExpanded = false
-                                }
+                    ReportCategoryFilter.CUSTOMER -> {
+                        val selCust = allCustomers.find { it.id == selectedCustomerId }
+                        ExposedDropdownMenuBox(
+                            expanded = subDropdownExpanded,
+                            onExpandedChange = { subDropdownExpanded = it },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = selCust?.name ?: "All Customers / सर्व ग्राहक",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Select Customer / ग्राहक निवडा") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subDropdownExpanded) },
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
                             )
+                            ExposedDropdownMenu(
+                                expanded = subDropdownExpanded,
+                                onDismissRequest = { subDropdownExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("All Customers / सर्व ग्राहक") },
+                                    onClick = {
+                                        selectedCustomerId = null
+                                        subDropdownExpanded = false
+                                    }
+                                )
+                                allCustomers.forEach { c ->
+                                    DropdownMenuItem(
+                                        text = { Text(c.name) },
+                                        onClick = {
+                                            selectedCustomerId = c.id
+                                            subDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    ReportCategoryFilter.DRIVER -> {
+                        val selDriv = allDrivers.find { it.id == selectedDriverId }
+                        ExposedDropdownMenuBox(
+                            expanded = subDropdownExpanded,
+                            onExpandedChange = { subDropdownExpanded = it },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = selDriv?.driverName ?: "All Drivers / सर्व चालक",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Select Driver / चालक निवडा") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subDropdownExpanded) },
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = subDropdownExpanded,
+                                onDismissRequest = { subDropdownExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("All Drivers / सर्व चालक") },
+                                    onClick = {
+                                        selectedDriverId = null
+                                        subDropdownExpanded = false
+                                    }
+                                )
+                                allDrivers.forEach { d ->
+                                    DropdownMenuItem(
+                                        text = { Text(d.driverName) },
+                                        onClick = {
+                                            selectedDriverId = d.id
+                                            subDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }

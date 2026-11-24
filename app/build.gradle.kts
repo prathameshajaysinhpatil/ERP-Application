@@ -68,6 +68,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.google.code.gson)
 
+    // ML Kit Text Recognition for Camera OCR
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)

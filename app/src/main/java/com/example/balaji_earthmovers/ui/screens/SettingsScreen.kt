@@ -409,6 +409,39 @@ fun SettingsScreen(
                     var editBusName by remember(currentBusName) { mutableStateOf(currentBusName) }
                     var editOwnerName by remember(currentOwnerName) { mutableStateOf(currentOwnerName) }
                     var editPhone by remember(currentPhone) { mutableStateOf(currentPhone) }
+                    var showProfileSavedDialog by remember { mutableStateOf(false) }
+
+                    if (showProfileSavedDialog) {
+                        AlertDialog(
+                            onDismissRequest = {
+                                showProfileSavedDialog = false
+                                activeFolder = null
+                            },
+                            title = {
+                                Text(
+                                    "Profile Saved / प्रोफाइल जतन झाली",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            text = {
+                                Text(
+                                    "Business profile details updated successfully! Changes are applied across headers.\n(कंपनी प्रोफाइल माहिती यशस्वीरित्या सेव्ह झाली आहे.)",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        showProfileSavedDialog = false
+                                        activeFolder = null
+                                    }
+                                ) {
+                                    Text("OK / ठीक आहे")
+                                }
+                            }
+                        )
+                    }
 
                     Text(
                         "Edit Business Profile / प्रोफाइल बदला",
@@ -461,6 +494,7 @@ fun SettingsScreen(
                                         logoUri = null
                                     )
                                     statusMessage = "Business profile information updated successfully!"
+                                    showProfileSavedDialog = true
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp)
