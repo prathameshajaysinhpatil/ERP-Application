@@ -573,16 +573,17 @@ fun parseDocumentText(text: String): ScannedRecordData {
     val foundGstin = gstinRegex.find(text)?.value?.uppercase() ?: ""
 
     // 5. Amount parsing (looks for ₹ or Rs. or Amount: followed by numbers)
-    val amountRegex = Regex("""(?:(?:₹|Rs\.?|INR|Amount|Amt|Total|Paid)\s*[:=-]?\s*)(\d+(?:\.\d{1,2})?)""", RegexOption.IGNORE_CASE)
+    val amountRegex = Regex("""(?:(?:\b(?:Rs\.?|INR|Amount|Amt|Total|Paid)\b|₹)\s*[:=-]?\s*)(\d+(?:\.\d{1,2})?)""", RegexOption.IGNORE_CASE)
     val foundAmount = amountRegex.find(text)?.groups?.get(1)?.value ?: ""
 
     // 6. Hours worked (looks for e.g. "25 hrs", "8 hours", "12.5 तास")
-    val hoursRegex = Regex("""(\d+(?:\.\d{1,2})?)\s*(?:hrs?|hours?|तास)""", RegexOption.IGNORE_CASE)
+    val hoursRegex = Regex("""\b(\d+(?:\.\d{1,2})?)\s*(?:hrs?|hours?|तास)\b""", RegexOption.IGNORE_CASE)
     val foundHours = hoursRegex.find(text)?.groups?.get(1)?.value ?: ""
 
-    // 7. Rate (looks for e.g. "@ 1200", "1500/hr", "दर 1000")
-    val rateRegex = Regex("""(?:@|rate|दर)?\s*(\d+)\s*(?:\/hr|\/ तास)?""", RegexOption.IGNORE_CASE)
-    val foundRate = rateRegex.find(text)?.groups?.get(1)?.value ?: ""
+    // 7. Rate (looks for e.g. "@ 1200", "1500/hr", "दर 1000", "rate: 1200")
+    val rateRegex = Regex("""(?:(?:\b(?:rate|दर)\b|@)\s*[:=-]?\s*(\d+))|(?:\b(\d+)\s*(?:\/hr|\/ तास|\/hour)\b)""", RegexOption.IGNORE_CASE)
+    val rateMatch = rateRegex.find(text)
+    val foundRate = rateMatch?.groups?.get(1)?.value ?: rateMatch?.groups?.get(2)?.value ?: ""
 
     // 8. Name heuristic: first line that doesn't start with numbers or labels
     val lines = text.lines().map { it.trim() }.filter { it.isNotBlank() }
@@ -594,7 +595,7 @@ fun parseDocumentText(text: String): ScannedRecordData {
     } ?: ""
 
     // 9. Location / Site address detection
-    val locationRegex = Regex("""(?:Site|Location|ठिकाण|गाव|साइट|At|Site at|Work at)\s*[:=-]?\s*([A-Za-z0-9\s,\-]+)""", RegexOption.IGNORE_CASE)
+    val locationRegex = Regex("""(?:\b(?:Site\s+at|Work\s+at|Site|Location|ठिकाण|गाव|साइट|At)\b)\s*[:=-]?\s*([A-Za-z0-9 \t,\-]+)""", RegexOption.IGNORE_CASE)
     val foundLocation = locationRegex.find(text)?.groups?.get(1)?.value?.trim() ?: ""
 
     return ScannedRecordData(
